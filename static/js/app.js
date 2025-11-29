@@ -1,18 +1,41 @@
+/**
+ * LipSync Video Generator - Frontend Application
+ * Interface web moderna para geração de vídeos com lip-sync
+ */
+
 // ============================================================================
-// STATE MANAGEMENT
+// STATE & CONFIG
 // ============================================================================
 
-const AppState = {
+const state = {
+    // Image management
     singleImages: [],
     multiImages: [],
+    uploadedImagePaths: [],
+
+    // Avatar state
+    avatars: [],
+    selectedAvatarId: null,
+    selectedAvatarPath: null,
+    pendingAvatarFile: null,
+
+    // Batch image mode
+    batchImageMode: 'fixed', // 'fixed' or 'individual'
+    batchImages: {}, // {scriptId_batchNumber: avatarId}
+
+    // Preview state
     previewData: null,
+    voiceSelections: [],
+
+    // Processing state
     currentVideoPath: null,
-    apiKeysConfigured: {
-        elevenlabs: false,
-        minimax: false,
-        gemini: false,
-        wavespeed: false
-    }
+    processingJobs: [],
+    completedVideos: [],
+
+    // Projects
+    projects: [],
+    currentProject: null,
+    tags: []
 };
 
 // ============================================================================
@@ -20,66 +43,71 @@ const AppState = {
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
+    initTabs();
+    initSettings();
+    initSliders();
+    initImageUpload();
+    initVoiceSelectors();
+    initAvatarUpload();
+    loadApiKeyStatus();
+    loadAvatars();
+    loadProjects();
+    loadVideoHistory();
+    loadProcessingJobs();
+
+    // Event listeners
+    document.getElementById('btnEstimate').addEventListener('click', calculateEstimate);
+    document.getElementById('btnGenerate').addEventListener('click', generateSingleVideo);
+    document.getElementById('btnGeneratePreview').addEventListener('click', generatePreview);
+    document.getElementById('btnDownload').addEventListener('click', downloadVideo);
+
+    // Refresh buttons
+    document.getElementById('btnUploadAvatar').addEventListener('click', showAvatarUploadBox);
 });
 
-function initializeApp() {
-    // Check API keys status
-    checkApiKeysStatus();
+// ============================================================================
+// TABS NAVIGATION
+// ============================================================================
 
-    // Initialize event listeners
-    initSettingsModal();
-    initTabs();
-    initSingleVideoTab();
-    initMultiScriptsTab();
+function initTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
 
-    // Initialize new features
-    initProjectsManagement();
-    initAvatarsManagement();
-    initJobsTimeline();
-    loadVideoHistory();
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
 
-    console.log('✅ Application initialized');
+            // Update buttons
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update content
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                if (content.id === `tab-${tabId}`) {
+                    content.classList.add('active');
+                }
+            });
+
+            // Load data for specific tabs
+            if (tabId === 'history') {
+                loadVideoHistory();
+            } else if (tabId === 'avatars') {
+                loadAvatars();
+            } else if (tabId === 'projects') {
+                loadProjects();
+            } else if (tabId === 'loading') {
+                loadProcessingJobs();
+            }
+        });
+    });
 }
 
 // ============================================================================
-// API KEYS CONFIGURATION
+// SETTINGS MODAL
 // ============================================================================
 
-async function checkApiKeysStatus() {
-    try {
-        const response = await fetch('/api/config/keys');
-        const data = await response.json();
-
-        if (data.success) {
-            AppState.apiKeysConfigured = data.keys;
-            updateApiStatusBadges();
-        }
-    } catch (error) {
-        console.error('Error checking API keys:', error);
-    }
-}
-
-function updateApiStatusBadges() {
-    const badges = {
-        elevenlabs: document.getElementById('statusElevenlabs'),
-        minimax: document.getElementById('statusMinimax'),
-        gemini: document.getElementById('statusGemini'),
-        wavespeed: document.getElementById('statusWavespeed')
-    };
-
-    for (const [key, element] of Object.entries(badges)) {
-        if (AppState.apiKeysConfigured[key]) {
-            element.textContent = '✓ Configurada';
-            element.className = 'api-status configured';
-        } else {
-            element.textContent = '⚠ Não configurada';
-            element.className = 'api-status not-configured';
-        }
-    }
-}
-
-function initSettingsModal() {
+function initSettings() {
     const modal = document.getElementById('settingsModal');
     const btnOpen = document.getElementById('btnOpenSettings');
     const btnClose = document.getElementById('btnCloseSettings');
@@ -87,23 +115,40 @@ function initSettingsModal() {
     const btnSave = document.getElementById('btnSaveSettings');
     const overlay = document.getElementById('modalOverlay');
 
-    btnOpen.addEventListener('click', () => {
-        modal.classList.add('active');
-    });
-
-    const closeModal = () => {
-        modal.classList.remove('active');
-    };
-
-    btnClose.addEventListener('click', closeModal);
-    btnCancel.addEventListener('click', closeModal);
-    overlay.addEventListener('click', closeModal);
+    btnOpen.addEventListener('click', () => modal.classList.add('active'));
+    btnClose.addEventListener('click', () => modal.classList.remove('active'));
+    btnCancel.addEventListener('click', () => modal.classList.remove('active'));
+    overlay.addEventListener('click', () => modal.classList.remove('active'));
 
     btnSave.addEventListener('click', saveApiKeys);
 }
 
+async function loadApiKeyStatus() {
+    try {
+        const response = await fetch('/api/config/keys');
+        const data = await response.json();
+
+        if (data.success) {
+            updateApiStatus('Elevenlabs', data.keys.elevenlabs);
+            updateApiStatus('Minimax', data.keys.minimax);
+            updateApiStatus('Gemini', data.keys.gemini);
+            updateApiStatus('Wavespeed', data.keys.wavespeed);
+        }
+    } catch (error) {
+        console.error('Erro ao verificar API keys:', error);
+    }
+}
+
+function updateApiStatus(name, configured) {
+    const status = document.getElementById(`status${name}`);
+    if (status) {
+        status.textContent = configured ? 'Configurada' : 'Pendente';
+        status.className = `api-status ${configured ? 'configured' : 'not-configured'}`;
+    }
+}
+
 async function saveApiKeys() {
-    const keys = {
+    const data = {
         elevenlabs_api_key: document.getElementById('apiKeyElevenlabs').value,
         minimax_api_key: document.getElementById('apiKeyMinimax').value,
         gemini_api_key: document.getElementById('apiKeyGemini').value,
@@ -114,166 +159,438 @@ async function saveApiKeys() {
         const response = await fetch('/api/config/keys', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(keys)
+            body: JSON.stringify(data)
         });
 
-        const data = await response.json();
+        const result = await response.json();
 
-        if (data.success) {
-            showStatusMessage('success', data.message);
+        if (result.success) {
+            showMessage('statusMessages', result.message, 'success');
             document.getElementById('settingsModal').classList.remove('active');
-            await checkApiKeysStatus();
-
-            // Reload voices for current provider
-            const provider = document.getElementById('singleProvider').value;
-            await loadVoices('singleVoice', provider);
+            loadApiKeyStatus();
+            loadVoices('single');
+            loadVoices('multi');
         } else {
-            showStatusMessage('error', data.error);
+            showMessage('statusMessages', result.error, 'error');
         }
     } catch (error) {
-        showStatusMessage('error', `Erro ao salvar API keys: ${error.message}`);
+        showMessage('statusMessages', 'Erro ao salvar configurações', 'error');
     }
 }
 
 // ============================================================================
-// TABS
+// SLIDERS
 // ============================================================================
 
-function initTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
+function initSliders() {
+    const singleSlider = document.getElementById('singleWorkers');
+    const singleValue = document.getElementById('singleWorkersValue');
+    const multiSlider = document.getElementById('multiWorkers');
+    const multiValue = document.getElementById('multiWorkersValue');
 
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetTab = btn.getAttribute('data-tab');
+    singleSlider.addEventListener('input', () => {
+        singleValue.textContent = singleSlider.value;
+    });
 
-            // Update active states
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-
-            btn.classList.add('active');
-            document.getElementById(`tab-${targetTab}`).classList.add('active');
-        });
+    multiSlider.addEventListener('input', () => {
+        multiValue.textContent = multiSlider.value;
     });
 }
 
 // ============================================================================
-// SINGLE VIDEO TAB
+// IMAGE SOURCE TOGGLE
 // ============================================================================
 
-function initSingleVideoTab() {
-    // Provider change
-    const providerSelect = document.getElementById('singleProvider');
-    providerSelect.addEventListener('change', async (e) => {
-        await loadVoices('singleVoice', e.target.value);
+function toggleImageSource(context, source) {
+    // context: 'single' or 'multi'
+    const avatarSelector = document.getElementById(`${context}AvatarSelector`);
+    const uploadSection = document.getElementById(`${context}UploadSection`);
+    const parentGroup = avatarSelector.closest('.form-group');
+    const toggleBtns = parentGroup.querySelectorAll('.toggle-btn');
+
+    toggleBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.source === source);
     });
 
-    // Load initial voices
-    loadVoices('singleVoice', providerSelect.value);
-
-    // Image upload
-    const uploadArea = document.getElementById('singleUploadArea');
-    const fileInput = document.getElementById('singleImages');
-
-    uploadArea.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = 'var(--accent-primary)';
-    });
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.style.borderColor = 'var(--border-color)';
-    });
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = 'var(--border-color)';
-        handleImageUpload(e.dataTransfer.files, 'single');
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        handleImageUpload(e.target.files, 'single');
-    });
-
-    // Slider
-    const workersSlider = document.getElementById('singleWorkers');
-    const workersValue = document.getElementById('singleWorkersValue');
-    workersSlider.addEventListener('input', (e) => {
-        workersValue.textContent = e.target.value;
-    });
-
-    // Buttons
-    document.getElementById('btnEstimate').addEventListener('click', estimateJob);
-    document.getElementById('btnGenerate').addEventListener('click', generateSingleVideo);
-}
-
-async function loadVoices(selectId, provider) {
-    const select = document.getElementById(selectId);
-    select.innerHTML = '<option value="">Carregando vozes...</option>';
-
-    try {
-        const response = await fetch(`/api/voices/${provider}`);
-        const data = await response.json();
-
-        if (data.success) {
-            select.innerHTML = data.voices.map(voice =>
-                `<option value="${voice}">${voice}</option>`
-            ).join('');
-        } else {
-            select.innerHTML = '<option value="">Erro ao carregar vozes</option>';
-            showStatusMessage('error', data.error);
-        }
-    } catch (error) {
-        select.innerHTML = '<option value="">Erro de conexão</option>';
-        console.error('Error loading voices:', error);
-    }
-}
-
-function handleImageUpload(files, mode) {
-    const fileArray = Array.from(files);
-    const validImages = fileArray.filter(file => file.type.startsWith('image/'));
-
-    if (mode === 'single') {
-        AppState.singleImages = validImages;
-        displayImagePreviews('singleImagePreview', validImages);
+    if (source === 'avatars') {
+        avatarSelector.style.display = 'grid';
+        uploadSection.style.display = 'none';
     } else {
-        AppState.multiImages = validImages;
-        displayImagePreviews('multiImagePreview', validImages);
+        avatarSelector.style.display = 'none';
+        uploadSection.style.display = 'block';
     }
 }
 
-function displayImagePreviews(containerId, images) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
+// ============================================================================
+// BATCH IMAGE MODE
+// ============================================================================
 
-    images.forEach((file, index) => {
+function setBatchImageMode(mode) {
+    state.batchImageMode = mode;
+
+    // Update buttons
+    document.querySelectorAll('.batch-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    // Show/hide fixed image section
+    const fixedSection = document.getElementById('fixedImageSection');
+    if (mode === 'fixed') {
+        fixedSection.style.display = 'block';
+    } else {
+        fixedSection.style.display = 'none';
+    }
+
+    // Re-render preview if exists
+    if (state.previewData) {
+        renderPreview(state.previewData);
+    }
+}
+
+// ============================================================================
+// IMAGE UPLOAD
+// ============================================================================
+
+function initImageUpload() {
+    // Single video upload
+    const singleUploadArea = document.getElementById('singleUploadArea');
+    const singleInput = document.getElementById('singleImages');
+
+    singleUploadArea.addEventListener('click', () => singleInput.click());
+    singleUploadArea.addEventListener('dragover', handleDragOver);
+    singleUploadArea.addEventListener('drop', (e) => handleDrop(e, 'single'));
+    singleInput.addEventListener('change', (e) => handleFileSelect(e, 'single'));
+
+    // Multi video upload
+    const multiUploadArea = document.getElementById('multiUploadArea');
+    const multiInput = document.getElementById('multiImages');
+
+    multiUploadArea.addEventListener('click', () => multiInput.click());
+    multiUploadArea.addEventListener('dragover', handleDragOver);
+    multiUploadArea.addEventListener('drop', (e) => handleDrop(e, 'multi'));
+    multiInput.addEventListener('change', (e) => handleFileSelect(e, 'multi'));
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('dragover');
+}
+
+function handleDrop(e, context) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    addImages(files, context);
+}
+
+function handleFileSelect(e, context) {
+    const files = Array.from(e.target.files);
+    addImages(files, context);
+}
+
+function addImages(files, context) {
+    const currentImages = context === 'single' ? state.singleImages : state.multiImages;
+    const maxImages = 20;
+
+    if (currentImages.length + files.length > maxImages) {
+        showMessage('statusMessages', `Máximo de ${maxImages} imagens permitidas`, 'error');
+        return;
+    }
+
+    files.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const div = document.createElement('div');
-            div.className = 'image-preview-item';
-            div.innerHTML = `
-                <img src="${e.target.result}" alt="Preview ${index + 1}">
-                <button class="image-preview-remove" onclick="removeImage('${containerId.replace('Preview', '')}', ${index})">×</button>
-            `;
-            container.appendChild(div);
+            if (context === 'single') {
+                state.singleImages.push({ file, preview: e.target.result });
+            } else {
+                state.multiImages.push({ file, preview: e.target.result });
+            }
+            renderImagePreviews(context);
         };
         reader.readAsDataURL(file);
     });
 }
 
-function removeImage(mode, index) {
-    if (mode === 'singleImage') {
-        AppState.singleImages.splice(index, 1);
-        displayImagePreviews('singleImagePreview', AppState.singleImages);
+function renderImagePreviews(context) {
+    const images = context === 'single' ? state.singleImages : state.multiImages;
+    const container = document.getElementById(`${context}ImagePreview`);
+
+    container.innerHTML = images.map((img, idx) => `
+        <div class="image-preview-item">
+            <img src="${img.preview}" alt="Preview ${idx + 1}">
+            <button class="image-preview-remove" onclick="removeImage(${idx}, '${context}')">&times;</button>
+        </div>
+    `).join('');
+}
+
+function removeImage(index, context) {
+    if (context === 'single') {
+        state.singleImages.splice(index, 1);
     } else {
-        AppState.multiImages.splice(index, 1);
-        displayImagePreviews('multiImagePreview', AppState.multiImages);
+        state.multiImages.splice(index, 1);
+    }
+    renderImagePreviews(context);
+}
+
+// ============================================================================
+// AVATAR MANAGEMENT
+// ============================================================================
+
+async function loadAvatars() {
+    try {
+        const response = await fetch('/api/avatars');
+        const data = await response.json();
+
+        if (data.success) {
+            state.avatars = data.avatars;
+            renderAvatarsGallery();
+            renderAvatarSelectors();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar avatares:', error);
     }
 }
 
-async function estimateJob() {
+function renderAvatarsGallery() {
+    const gallery = document.getElementById('avatarsGallery');
+
+    if (state.avatars.length === 0) {
+        gallery.innerHTML = `
+            <div class="empty-state-large">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <p>Nenhum avatar salvo ainda</p>
+                <p class="hint">Faça upload de imagens template para usar nos vídeos</p>
+            </div>
+        `;
+        return;
+    }
+
+    gallery.innerHTML = state.avatars.map(avatar => `
+        <div class="avatar-card" data-id="${avatar.id}">
+            <img class="avatar-card-image" src="/api/avatars/${avatar.id}/image" alt="${avatar.name}">
+            <div class="avatar-card-info">
+                <div class="avatar-card-name">${avatar.name}</div>
+                <div class="avatar-card-date">${formatDate(avatar.created_at)}</div>
+                <div class="avatar-card-actions">
+                    <button class="avatar-card-btn" onclick="selectAvatarForUse('${avatar.id}')">Usar</button>
+                    <button class="avatar-card-btn danger" onclick="deleteAvatar('${avatar.id}')">Excluir</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderAvatarSelectors() {
+    const selectors = ['singleAvatarSelector', 'multiAvatarSelector'];
+
+    selectors.forEach(selectorId => {
+        const selector = document.getElementById(selectorId);
+        if (!selector) return;
+
+        if (state.avatars.length === 0) {
+            selector.innerHTML = '<p class="loading-text">Nenhum avatar disponível. Faça upload na aba "My Avatars"</p>';
+            return;
+        }
+
+        selector.innerHTML = state.avatars.map(avatar => `
+            <div class="avatar-selector-item ${state.selectedAvatarId === avatar.id ? 'selected' : ''}"
+                 data-id="${avatar.id}"
+                 data-path="${avatar.image_path}"
+                 onclick="selectAvatar('${avatar.id}', '${avatar.image_path}')">
+                <img class="avatar-selector-thumb" src="/api/avatars/${avatar.id}/image" alt="${avatar.name}">
+                <span class="avatar-selector-name">${avatar.name}</span>
+            </div>
+        `).join('');
+    });
+}
+
+function selectAvatar(avatarId, avatarPath) {
+    state.selectedAvatarId = avatarId;
+    state.selectedAvatarPath = avatarPath;
+
+    // Update UI
+    document.querySelectorAll('.avatar-selector-item').forEach(item => {
+        item.classList.toggle('selected', item.dataset.id === avatarId);
+    });
+}
+
+function selectAvatarForUse(avatarId) {
+    const avatar = state.avatars.find(a => a.id === avatarId);
+    if (avatar) {
+        selectAvatar(avatarId, avatar.image_path);
+        // Switch to single video tab
+        document.querySelector('[data-tab="single"]').click();
+        // Switch to avatars source
+        toggleImageSource('single', 'avatars');
+    }
+}
+
+async function deleteAvatar(avatarId) {
+    if (!confirm('Tem certeza que deseja excluir este avatar?')) return;
+
+    try {
+        const response = await fetch(`/api/avatars/${avatarId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (state.selectedAvatarId === avatarId) {
+                state.selectedAvatarId = null;
+                state.selectedAvatarPath = null;
+            }
+            loadAvatars();
+        } else {
+            alert('Erro ao excluir avatar: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro ao excluir avatar:', error);
+    }
+}
+
+// ============================================================================
+// AVATAR UPLOAD
+// ============================================================================
+
+function initAvatarUpload() {
+    const input = document.getElementById('avatarUploadInput');
+    const placeholder = document.getElementById('avatarPreviewPlaceholder');
+
+    input.addEventListener('change', handleAvatarFileSelect);
+    if (placeholder) {
+        placeholder.addEventListener('click', () => input.click());
+    }
+}
+
+function showAvatarUploadBox() {
+    const uploadBox = document.getElementById('avatarUploadBox');
+    uploadBox.style.display = 'flex';
+
+    // Reset state
+    state.pendingAvatarFile = null;
+    document.getElementById('avatarName').value = '';
+    document.getElementById('avatarPreviewImage').style.display = 'none';
+    document.getElementById('avatarPreviewPlaceholder').style.display = 'flex';
+}
+
+function cancelAvatarUpload() {
+    const uploadBox = document.getElementById('avatarUploadBox');
+    uploadBox.style.display = 'none';
+    state.pendingAvatarFile = null;
+}
+
+function handleAvatarFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    state.pendingAvatarFile = file;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const previewImg = document.getElementById('avatarPreviewImage');
+        const placeholder = document.getElementById('avatarPreviewPlaceholder');
+
+        previewImg.src = e.target.result;
+        previewImg.style.display = 'block';
+        placeholder.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+
+    // Auto-fill name if empty
+    const nameInput = document.getElementById('avatarName');
+    if (!nameInput.value) {
+        nameInput.value = file.name.replace(/\.[^/.]+$/, '');
+    }
+}
+
+async function saveAvatar() {
+    if (!state.pendingAvatarFile) {
+        alert('Selecione uma imagem primeiro');
+        return;
+    }
+
+    const name = document.getElementById('avatarName').value || state.pendingAvatarFile.name;
+
+    const formData = new FormData();
+    formData.append('image', state.pendingAvatarFile);
+    formData.append('name', name);
+
+    try {
+        const response = await fetch('/api/avatars', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            cancelAvatarUpload();
+            loadAvatars();
+        } else {
+            alert('Erro ao salvar avatar: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro ao salvar avatar:', error);
+        alert('Erro ao salvar avatar');
+    }
+}
+
+// ============================================================================
+// VOICE SELECTORS
+// ============================================================================
+
+function initVoiceSelectors() {
+    const singleProvider = document.getElementById('singleProvider');
+    const multiProvider = document.getElementById('multiProvider');
+
+    singleProvider.addEventListener('change', () => loadVoices('single'));
+    multiProvider.addEventListener('change', () => loadVoices('multi'));
+
+    // Load initial voices
+    loadVoices('single');
+    loadVoices('multi');
+}
+
+async function loadVoices(context) {
+    const providerSelect = document.getElementById(`${context}Provider`);
+    const voiceSelect = document.getElementById(`${context}Voice`);
+    const provider = providerSelect.value;
+
+    if (!voiceSelect) return;
+
+    voiceSelect.innerHTML = '<option value="">Carregando...</option>';
+
+    try {
+        const response = await fetch(`/api/voices/${provider}`);
+        const data = await response.json();
+
+        if (data.success && data.voices.length > 0) {
+            voiceSelect.innerHTML = data.voices.map(voice =>
+                `<option value="${voice}">${voice}</option>`
+            ).join('');
+        } else {
+            voiceSelect.innerHTML = '<option value="">Nenhuma voz disponível</option>';
+        }
+    } catch (error) {
+        console.error(`Erro ao carregar vozes:`, error);
+        voiceSelect.innerHTML = '<option value="">Erro ao carregar vozes</option>';
+    }
+}
+
+// ============================================================================
+// ESTIMATE
+// ============================================================================
+
+async function calculateEstimate() {
     const text = document.getElementById('singleText').value;
 
     if (!text.trim()) {
-        showStatusMessage('error', 'Por favor, digite um roteiro');
+        showMessage('statusMessages', 'Digite um texto para estimar', 'error');
         return;
     }
 
@@ -287,76 +604,86 @@ async function estimateJob() {
         const data = await response.json();
 
         if (data.success) {
-            displayEstimate(data.estimate);
+            const est = data.estimate;
+            document.getElementById('estimateCard').style.display = 'block';
+            document.getElementById('estimateContent').innerHTML = `
+                <p><strong>Caracteres:</strong> ${est.total_chars ? est.total_chars.toLocaleString() : est.num_chars}</p>
+                <p><strong>Batches:</strong> ${est.batches || est.num_batches}</p>
+                <p><strong>Custo ElevenLabs:</strong> $${(est.cost_elevenlabs || 0).toFixed(4)}</p>
+                <p><strong>Custo WaveSpeed:</strong> $${(est.cost_wavespeed || 0).toFixed(4)}</p>
+                <p><strong>Custo Total Estimado:</strong> $${(est.total_cost || 0).toFixed(4)}</p>
+            `;
         } else {
-            showStatusMessage('error', data.error);
+            showMessage('statusMessages', data.error, 'error');
         }
     } catch (error) {
-        showStatusMessage('error', `Erro ao calcular estimativa: ${error.message}`);
+        showMessage('statusMessages', 'Erro ao calcular estimativa', 'error');
     }
 }
 
-function displayEstimate(estimate) {
-    const card = document.getElementById('estimateCard');
-    const content = document.getElementById('estimateContent');
-
-    content.innerHTML = `
-        <p><strong>Análise do Texto:</strong></p>
-        <ul>
-            <li>Caracteres: ${estimate.num_chars.toLocaleString()}</li>
-            <li>Batches: ${estimate.num_batches}</li>
-            <li>Vídeos a gerar: ${estimate.num_videos}</li>
-        </ul>
-        
-        <p><strong>Tempo Estimado:</strong> ${estimate.estimated_time}</p>
-        
-        <p><strong>Custo Estimado:</strong></p>
-        <ul>
-            <li>Gemini: ${estimate.estimated_cost.gemini}</li>
-            <li>ElevenLabs: ${estimate.estimated_cost.elevenlabs}</li>
-            <li>WaveSpeed: ${estimate.estimated_cost.wavespeed}</li>
-            <li><strong>Total: ${estimate.estimated_cost.total}</strong></li>
-        </ul>
-        
-        <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 1rem;">
-            Os valores são aproximados e podem variar conforme uso real das APIs.
-        </p>
-    `;
-
-    card.style.display = 'block';
-}
+// ============================================================================
+// SINGLE VIDEO GENERATION
+// ============================================================================
 
 async function generateSingleVideo() {
     const text = document.getElementById('singleText').value;
     const provider = document.getElementById('singleProvider').value;
-    const voiceName = document.getElementById('singleVoice').value;
-    const modelId = document.getElementById('singleModel').value;
-    const maxWorkers = parseInt(document.getElementById('singleWorkers').value);
+    const voice = document.getElementById('singleVoice').value;
+    const model = document.getElementById('singleModel').value;
+    const workers = parseInt(document.getElementById('singleWorkers').value);
 
     // Validation
     if (!text.trim()) {
-        showStatusMessage('error', 'Por favor, digite um roteiro');
+        showMessage('statusMessages', 'Digite um roteiro', 'error');
         return;
     }
 
-    if (!voiceName) {
-        showStatusMessage('error', 'Por favor, selecione uma voz');
+    if (!voice) {
+        showMessage('statusMessages', 'Selecione uma voz', 'error');
         return;
     }
 
-    if (AppState.singleImages.length === 0) {
-        showStatusMessage('error', 'Por favor, faça upload de pelo menos uma imagem');
+    // Get image paths
+    let imagePaths = [];
+
+    if (state.selectedAvatarPath) {
+        imagePaths = [state.selectedAvatarPath];
+    } else if (state.singleImages.length > 0) {
+        // Upload images first
+        imagePaths = await uploadImages(state.singleImages);
+    }
+
+    if (imagePaths.length === 0) {
+        showMessage('statusMessages', 'Selecione pelo menos uma imagem', 'error');
         return;
     }
 
-    // Upload images first
-    showProgress('Fazendo upload das imagens...', 10);
+    // Show progress
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const videoContainer = document.getElementById('videoContainer');
+
+    progressContainer.style.display = 'block';
+    videoContainer.style.display = 'none';
+    progressFill.style.width = '0%';
+    progressText.textContent = 'Iniciando geração...';
+
+    // Add to loading tab
+    const tempJobId = Date.now().toString();
+    addToLoadingTab({
+        id: tempJobId,
+        title: 'Video em processamento',
+        text: text.substring(0, 100) + '...',
+        status: 'processing'
+    });
+
+    // Switch to loading tab to show animation
+    document.querySelector('[data-tab="loading"]').click();
 
     try {
-        const imagePaths = await uploadImages(AppState.singleImages);
-
-        // Generate video
-        showProgress('Iniciando geração do vídeo...', 20);
+        progressFill.style.width = '20%';
+        progressText.textContent = 'Enviando para processamento...';
 
         const response = await fetch('/api/generate/single', {
             method: 'POST',
@@ -364,103 +691,80 @@ async function generateSingleVideo() {
             body: JSON.stringify({
                 text,
                 provider,
-                voice_name: voiceName,
-                model_id: modelId,
+                voice_name: voice,
+                model_id: model,
                 image_paths: imagePaths,
-                max_workers: maxWorkers
+                max_workers: workers
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            showProgress('Vídeo gerado com sucesso!', 100);
-            displayVideo(data.video_path);
-            showStatusMessage('success', `Vídeo gerado em ${data.duration.toFixed(1)}s - Job ID: ${data.job_id}`);
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Vídeo gerado com sucesso!';
+
+            state.currentVideoPath = data.video_path;
+
+            // Show video
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.src = `/api/download/${encodeURIComponent(data.video_path)}`;
+            videoContainer.style.display = 'block';
+
+            // Update loading tab
+            updateLoadingTabItem(tempJobId, 'completed', data.video_path);
+
+            showMessage('statusMessages', `Vídeo gerado em ${data.duration.toFixed(1)}s`, 'success');
+
+            // Reload history
+            loadVideoHistory();
+            loadProcessingJobs();
         } else {
-            hideProgress();
-            showStatusMessage('error', data.error);
+            progressContainer.style.display = 'none';
+            updateLoadingTabItem(tempJobId, 'failed');
+            showMessage('statusMessages', data.error, 'error');
         }
     } catch (error) {
-        hideProgress();
-        showStatusMessage('error', `Erro ao gerar vídeo: ${error.message}`);
+        progressContainer.style.display = 'none';
+        updateLoadingTabItem(tempJobId, 'failed');
+        showMessage('statusMessages', 'Erro ao gerar vídeo', 'error');
+        console.error(error);
     }
 }
 
 async function uploadImages(images) {
     const formData = new FormData();
-    images.forEach(image => {
-        formData.append('images', image);
+    images.forEach(img => {
+        formData.append('images', img.file);
     });
 
-    const response = await fetch('/api/upload/images', {
-        method: 'POST',
-        body: formData
-    });
+    try {
+        const response = await fetch('/api/upload/images', {
+            method: 'POST',
+            body: formData
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (!data.success) {
-        throw new Error(data.error);
+        if (data.success) {
+            return data.paths;
+        }
+    } catch (error) {
+        console.error('Erro ao fazer upload:', error);
     }
 
-    return data.paths;
+    return [];
 }
 
 // ============================================================================
-// MULTI SCRIPTS TAB
+// PREVIEW GENERATION
 // ============================================================================
-
-function initMultiScriptsTab() {
-    // Provider change
-    const providerSelect = document.getElementById('multiProvider');
-    providerSelect.addEventListener('change', async (e) => {
-        // We'll load voices dynamically per script
-    });
-
-    // Image upload
-    const uploadArea = document.getElementById('multiUploadArea');
-    const fileInput = document.getElementById('multiImages');
-
-    uploadArea.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = 'var(--accent-primary)';
-    });
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.style.borderColor = 'var(--border-color)';
-    });
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = 'var(--border-color)';
-        handleImageUpload(e.dataTransfer.files, 'multi');
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        handleImageUpload(e.target.files, 'multi');
-    });
-
-    // Slider
-    const workersSlider = document.getElementById('multiWorkers');
-    const workersValue = document.getElementById('multiWorkersValue');
-    workersSlider.addEventListener('input', (e) => {
-        workersValue.textContent = e.target.value;
-    });
-
-    // Button
-    document.getElementById('btnGeneratePreview').addEventListener('click', generatePreview);
-}
 
 async function generatePreview() {
-    const scriptsText = document.getElementById('multiText').value;
+    const text = document.getElementById('multiText').value;
 
-    if (!scriptsText.trim()) {
-        showStatusMessage('error', 'Por favor, digite os roteiros');
-        return;
-    }
-
-    if (AppState.multiImages.length === 0) {
-        showStatusMessage('error', 'Por favor, faça upload de pelo menos uma imagem');
+    if (!text.trim()) {
+        showMessage('statusMessages', 'Digite os roteiros', 'error');
         return;
     }
 
@@ -468,230 +772,468 @@ async function generatePreview() {
         const response = await fetch('/api/preview', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scripts_text: scriptsText })
+            body: JSON.stringify({ scripts_text: text })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            AppState.previewData = data;
-            await displayPreview(data);
-            showStatusMessage('success', `${data.summary.total_scripts} roteiros encontrados com ${data.summary.total_batches} batches`);
+            state.previewData = data;
+            // Load voices for preview
+            const provider = document.getElementById('multiProvider').value;
+            const voicesResponse = await fetch(`/api/voices/${provider}`);
+            const voicesData = await voicesResponse.json();
+            state.voiceSelections = data.scripts.map(() => voicesData.success && voicesData.voices.length > 0 ? voicesData.voices[0] : '');
+            renderPreview(data);
         } else {
-            showStatusMessage('error', data.error);
+            showMessage('statusMessages', data.error, 'error');
         }
     } catch (error) {
-        showStatusMessage('error', `Erro ao gerar preview: ${error.message}`);
+        showMessage('statusMessages', 'Erro ao gerar preview', 'error');
     }
 }
 
-async function displayPreview(data) {
+async function renderPreview(data) {
     const container = document.getElementById('previewContent');
     const provider = document.getElementById('multiProvider').value;
 
     // Load voices for provider
-    const voicesResponse = await fetch(`/api/voices/${provider}`);
-    const voicesData = await voicesResponse.json();
-    const voices = voicesData.success ? voicesData.voices : [];
+    let voices = [];
+    try {
+        const voicesResponse = await fetch(`/api/voices/${provider}`);
+        const voicesData = await voicesResponse.json();
+        voices = voicesData.success ? voicesData.voices : [];
+    } catch (e) {
+        console.error('Error loading voices:', e);
+    }
 
-    let html = '';
+    let html = `
+        <div class="preview-summary" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+            <span class="info-badge">${data.summary.total_scripts} roteiros</span>
+            <span class="info-badge">${data.summary.total_batches} batches</span>
+            <span class="info-badge">${data.summary.total_chars.toLocaleString()} caracteres</span>
+        </div>
+    `;
 
     data.scripts.forEach((script, scriptIdx) => {
         html += `
-            <div class="script-card" data-script-id="${script.id}">
+            <div class="script-card">
                 <div class="script-header">
-                    <div>
-                        <div class="script-title">Roteiro #${script.id}</div>
-                        <div class="script-stats">${script.total_chars.toLocaleString()} caracteres | ${script.total_batches} batches</div>
-                    </div>
-                    <span class="info-badge">Selecione a voz</span>
+                    <span class="script-title">Roteiro ${script.id}</span>
+                    <span class="script-stats">${script.total_batches} batches | ${script.total_chars} chars</span>
                 </div>
-                
-                <div class="form-group">
-                    <label>Voz para este roteiro:</label>
-                    <select class="select script-voice" data-script-index="${scriptIdx}">
+                <div style="margin-bottom: 1rem;">
+                    <label style="color: white; font-size: 0.875rem; margin-bottom: 0.5rem; display: block;">Voz para este roteiro:</label>
+                    <select class="voice-select" data-script="${scriptIdx}" onchange="updateVoiceSelection(${scriptIdx}, this.value)" style="width: 100%; padding: 0.5rem; border-radius: 8px; border: none;">
                         ${voices.map(v => `<option value="${v}">${v}</option>`).join('')}
                     </select>
                 </div>
+                <div class="batches-container">
         `;
 
-        script.batches.forEach(batch => {
-            const previewText = batch.text.length > 200 ? batch.text.substring(0, 200) + '...' : batch.text;
-
+        script.batches.forEach((batch, batchIdx) => {
             html += `
                 <div class="batch-card">
                     <div class="batch-header">
-                        <span class="batch-title">Batch #${batch.batch_number}</span>
-                        <span class="info-badge">${batch.char_count} caracteres</span>
+                        <span class="batch-title">Batch ${batch.batch_number}</span>
+                        <span style="font-size: 0.75rem; color: #666;">${batch.char_count} chars</span>
                     </div>
-                    <div class="batch-text">${previewText}</div>
-                </div>
+                    <div class="batch-text">${batch.text.replace(/\n/g, '<br>')}</div>
             `;
+
+            // Add image selector if in individual mode
+            if (state.batchImageMode === 'individual') {
+                html += renderBatchImageSelector(script.id, batch.batch_number);
+            }
+
+            html += `</div>`;
         });
 
-        html += `</div>`;
+        html += `
+                </div>
+            </div>
+        `;
     });
 
     html += `
-        <button class="btn btn-primary btn-block" onclick="processBatchVideos()">
+        <button class="btn btn-primary btn-block" onclick="generateBatchVideos()" style="margin-top: 1.5rem;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
-            Processar Todos os Roteiros
+            Gerar ${data.summary.total_scripts} Vídeos
         </button>
     `;
 
     container.innerHTML = html;
 }
 
-async function processBatchVideos() {
-    if (!AppState.previewData) {
-        showStatusMessage('error', 'Gere o preview primeiro');
+function renderBatchImageSelector(scriptId, batchNumber) {
+    const key = `${scriptId}_${batchNumber}`;
+    const selectedId = state.batchImages[key];
+
+    let html = `
+        <div class="batch-image-selector">
+            <div class="batch-image-header">
+                <span class="batch-image-title">Imagem para este batch:</span>
+            </div>
+            <div class="batch-image-mini-grid">
+    `;
+
+    state.avatars.forEach(avatar => {
+        html += `
+            <div class="batch-image-mini-item ${selectedId === avatar.id ? 'selected' : ''}"
+                 onclick="selectBatchImage('${scriptId}', ${batchNumber}, '${avatar.id}')">
+                <img src="/api/avatars/${avatar.id}/image" alt="${avatar.name}">
+            </div>
+        `;
+    });
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    return html;
+}
+
+function selectBatchImage(scriptId, batchNumber, avatarId) {
+    const key = `${scriptId}_${batchNumber}`;
+    state.batchImages[key] = avatarId;
+
+    // Update UI
+    if (state.previewData) {
+        renderPreview(state.previewData);
+    }
+}
+
+function updateVoiceSelection(scriptIdx, voice) {
+    state.voiceSelections[scriptIdx] = voice;
+}
+
+// ============================================================================
+// BATCH VIDEO GENERATION
+// ============================================================================
+
+async function generateBatchVideos() {
+    if (!state.previewData) {
+        showMessage('statusMessages', 'Gere o preview primeiro', 'error');
         return;
     }
 
     const provider = document.getElementById('multiProvider').value;
-    const modelId = document.getElementById('multiModel').value;
-    const maxWorkers = parseInt(document.getElementById('multiWorkers').value);
+    const model = document.getElementById('multiModel').value;
+    const workers = parseInt(document.getElementById('multiWorkers').value);
 
-    // Get voice selections
-    const voiceSelects = document.querySelectorAll('.script-voice');
-    const voiceSelections = Array.from(voiceSelects).map(select => select.value);
+    // Get image paths based on mode
+    let imagePaths = [];
 
-    // Upload images
-    showProgress('Fazendo upload das imagens...', 5);
+    if (state.batchImageMode === 'fixed') {
+        if (state.selectedAvatarPath) {
+            imagePaths = [state.selectedAvatarPath];
+        } else if (state.multiImages.length > 0) {
+            imagePaths = await uploadImages(state.multiImages);
+        }
+    } else {
+        // Individual mode - collect all selected images
+        const avatarIds = new Set(Object.values(state.batchImages));
+        avatarIds.forEach(id => {
+            const avatar = state.avatars.find(a => a.id === id);
+            if (avatar) {
+                imagePaths.push(avatar.image_path);
+            }
+        });
+    }
+
+    if (imagePaths.length === 0) {
+        showMessage('statusMessages', 'Selecione pelo menos uma imagem', 'error');
+        return;
+    }
+
+    // Validate voice selections
+    if (state.voiceSelections.some(v => !v)) {
+        showMessage('statusMessages', 'Selecione uma voz para cada roteiro', 'error');
+        return;
+    }
+
+    // Switch to loading tab
+    document.querySelector('[data-tab="loading"]').click();
+
+    // Add items to loading tab
+    state.previewData.scripts.forEach(script => {
+        addToLoadingTab({
+            id: `batch_${script.id}`,
+            title: `Roteiro ${script.id}`,
+            text: script.text.substring(0, 100) + '...',
+            status: 'processing'
+        });
+    });
 
     try {
-        const imagePaths = await uploadImages(AppState.multiImages);
-
-        showProgress('Processando roteiros...', 10);
-
         const response = await fetch('/api/generate/batch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                scripts: AppState.previewData.scripts,
+                scripts: state.previewData.scripts,
                 provider,
-                model_id: modelId,
+                model_id: model,
                 image_paths: imagePaths,
-                max_workers: maxWorkers,
-                voice_selections: voiceSelections
+                max_workers: workers,
+                voice_selections: state.voiceSelections
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            showProgress('Processamento concluído!', 100);
-            displayBatchResults(data);
+            const resultsCard = document.getElementById('multiResultsCard');
+            const resultsContainer = document.getElementById('multiResults');
+
+            let html = '<div class="results-grid">';
+
+            data.results.forEach(result => {
+                if (result.success) {
+                    html += `
+                        <div class="status-message status-success">
+                            <strong>Roteiro ${result.script_id}:</strong>
+                            Gerado em ${result.duration.toFixed(1)}s
+                            <button class="btn btn-secondary" onclick="downloadVideoByPath('${result.video_path}')" style="margin-left: 1rem;">
+                                Baixar
+                            </button>
+                        </div>
+                    `;
+                    updateLoadingTabItem(`batch_${result.script_id}`, 'completed', result.video_path);
+                } else {
+                    html += `
+                        <div class="status-message status-error">
+                            <strong>Roteiro ${result.script_id}:</strong> ${result.error}
+                        </div>
+                    `;
+                    updateLoadingTabItem(`batch_${result.script_id}`, 'failed');
+                }
+            });
+
+            html += '</div>';
+
+            resultsCard.style.display = 'block';
+            resultsContainer.innerHTML = html;
+
+            showMessage('statusMessages', `${data.videos_count} de ${data.total_scripts} vídeos gerados`, 'success');
+
+            // Reload history
+            loadVideoHistory();
+            loadProcessingJobs();
         } else {
-            hideProgress();
-            showStatusMessage('error', data.error);
+            showMessage('statusMessages', data.error, 'error');
         }
     } catch (error) {
-        hideProgress();
-        showStatusMessage('error', `Erro ao processar lote: ${error.message}`);
+        showMessage('statusMessages', 'Erro ao gerar vídeos', 'error');
+        console.error(error);
     }
 }
 
-function displayBatchResults(data) {
-    const card = document.getElementById('multiResultsCard');
-    const container = document.getElementById('multiResults');
+// ============================================================================
+// LOADING TAB
+// ============================================================================
 
-    let html = `
-        <div class="status-message status-success">
-            <strong>Processamento Concluído!</strong><br>
-            ${data.videos_count} de ${data.total_scripts} roteiros foram processados com sucesso
+function addToLoadingTab(item) {
+    const container = document.getElementById('loadingVideosContainer');
+
+    // Remove empty state if present
+    const emptyState = container.querySelector('.empty-state-large');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    const itemHtml = `
+        <div class="loading-video-card" data-id="${item.id}">
+            <div class="loading-video-preview">
+                <div class="loading-animation">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="loading-video-info">
+                <div class="loading-video-title">${item.title}</div>
+                <div class="loading-video-meta">${item.text}</div>
+                <div class="loading-video-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 30%;"></div>
+                    </div>
+                    <div class="loading-video-status">
+                        Processando
+                        <div class="processing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
-    data.results.forEach(result => {
-        if (result.success) {
-            html += `
-                <div class="status-message status-success">
-                    ✓ Roteiro #${result.script_id}: Concluído em ${result.duration.toFixed(1)}s<br>
-                    <small>${result.video_path}</small>
+    container.insertAdjacentHTML('afterbegin', itemHtml);
+}
+
+function updateLoadingTabItem(itemId, status, videoPath = null) {
+    const item = document.querySelector(`.loading-video-card[data-id="${itemId}"]`);
+    if (!item) return;
+
+    if (status === 'completed' && videoPath) {
+        // Move to completed section
+        item.remove();
+        addToCompletedVideos({
+            id: itemId,
+            path: videoPath,
+            name: videoPath.split('/').pop()
+        });
+    } else if (status === 'failed') {
+        item.querySelector('.loading-video-status').innerHTML = `
+            <span style="color: var(--error);">Falhou</span>
+        `;
+        item.querySelector('.progress-fill').style.background = 'var(--error)';
+    }
+}
+
+function addToCompletedVideos(video) {
+    const container = document.getElementById('completedVideosContainer');
+
+    // Remove empty state if present
+    const emptyState = container.querySelector('.empty-state-large');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    const itemHtml = `
+        <div class="completed-video-card">
+            <div class="completed-video-thumbnail">
+                <video src="/api/download/${encodeURIComponent(video.path)}"></video>
+                <div class="completed-video-play-overlay">
+                    <div class="completed-video-play-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                    </div>
                 </div>
-            `;
+            </div>
+            <div class="completed-video-info">
+                <div class="completed-video-title">${video.name}</div>
+                <div class="completed-video-meta">Concluído agora</div>
+            </div>
+            <div class="completed-video-actions">
+                <button class="btn btn-primary" onclick="downloadVideoByPath('${video.path}')">
+                    Baixar
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('afterbegin', itemHtml);
+}
+
+async function loadProcessingJobs() {
+    try {
+        const response = await fetch('/api/jobs?status=processing');
+        const data = await response.json();
+
+        if (data.success) {
+            state.processingJobs = data.jobs;
+            // Update UI if needed
+        }
+    } catch (error) {
+        console.error('Erro ao carregar jobs:', error);
+    }
+}
+
+// ============================================================================
+// VIDEO HISTORY
+// ============================================================================
+
+async function loadVideoHistory() {
+    const container = document.getElementById('videoHistoryGrid');
+    if (!container) return;
+
+    try {
+        const response = await fetch('/api/videos/history');
+        const data = await response.json();
+
+        if (data.success && data.videos.length > 0) {
+            container.innerHTML = data.videos.map(video => `
+                <div class="video-history-item">
+                    <video class="video-history-thumb" src="/api/download/${encodeURIComponent(video.path)}" preload="metadata"></video>
+                    <div class="video-history-info">
+                        <div class="video-history-name">${video.name}</div>
+                        <div class="video-history-meta">${formatFileSize(video.size)} | ${formatDate(video.created_at * 1000)}</div>
+                    </div>
+                    <div class="video-history-actions">
+                        <button class="btn btn-secondary" onclick="playVideo('${video.path}')">Assistir</button>
+                        <button class="btn btn-primary" onclick="downloadVideoByPath('${video.path}')">Baixar</button>
+                    </div>
+                </div>
+            `).join('');
         } else {
-            html += `
-                <div class="status-message status-error">
-                    ✗ Roteiro #${result.script_id}: ${result.error}
+            container.innerHTML = `
+                <div class="empty-state-large" style="grid-column: 1/-1;">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                        <line x1="7" y1="2" x2="7" y2="22"></line>
+                        <line x1="17" y1="2" x2="17" y2="22"></line>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                    </svg>
+                    <p>Nenhum vídeo no histórico</p>
+                    <p class="hint">Os vídeos gerados aparecerão aqui</p>
                 </div>
             `;
         }
-    });
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+    }
+}
 
-    container.innerHTML = html;
-    card.style.display = 'block';
+function playVideo(videoPath) {
+    // Open video in new tab or modal
+    window.open(`/api/download/${encodeURIComponent(videoPath)}`, '_blank');
 }
 
 // ============================================================================
-// UI HELPERS
+// DOWNLOAD
 // ============================================================================
 
-function showProgress(message, percent) {
-    const container = document.getElementById('progressContainer');
-    const fill = document.getElementById('progressFill');
-    const text = document.getElementById('progressText');
-
-    container.style.display = 'block';
-    fill.style.width = `${percent}%`;
-    text.textContent = message;
+function downloadVideo() {
+    if (state.currentVideoPath) {
+        downloadVideoByPath(state.currentVideoPath);
+    }
 }
 
-function hideProgress() {
-    document.getElementById('progressContainer').style.display = 'none';
-}
+function downloadVideoByPath(videoPath) {
+    // Create a proper download link
+    const link = document.createElement('a');
+    const downloadUrl = `/api/download/${encodeURIComponent(videoPath)}`;
 
-function showStatusMessage(type, message) {
-    const container = document.getElementById('statusMessages');
-    const div = document.createElement('div');
-    div.className = `status-message status-${type}`;
-    div.textContent = message;
-
-    container.appendChild(div);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        div.remove();
-    }, 5000);
-}
-
-function displayVideo(videoPath) {
-    const container = document.getElementById('videoContainer');
-    const player = document.getElementById('videoPlayer');
-    const btnDownload = document.getElementById('btnDownload');
-
-    AppState.currentVideoPath = videoPath;
-    player.src = `/api/download/${encodeURIComponent(videoPath)}`;
-    container.style.display = 'block';
-
-    btnDownload.onclick = () => {
-        window.open(`/api/download/${encodeURIComponent(videoPath)}`, '_blank');
-    };
+    // Use fetch to get the file as blob for proper download
+    fetch(downloadUrl)
+        .then(response => {
+            if (!response.ok) throw new Error('Download failed');
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            link.href = url;
+            link.download = videoPath.split('/').pop() || 'video.mp4';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+            console.error('Download error:', error);
+            // Fallback to direct download
+            window.open(downloadUrl, '_blank');
+        });
 }
 
 // ============================================================================
-// PROJECTS MANAGEMENT
+// PROJECTS
 // ============================================================================
-
-let selectedProjectId = null;
-let selectedTag = '';
-
-function initProjectsManagement() {
-    loadProjects();
-    loadTags();
-
-    // New project button in sidebar
-    document.getElementById('btnNewProject')?.addEventListener('click', showNewProjectModal);
-
-    // New project button in projects tab
-    document.getElementById('btnNewProjectTab')?.addEventListener('click', showNewProjectModal);
-
-    // Manage tags button
-    document.getElementById('btnManageTags')?.addEventListener('click', showManageTagsModal);
-}
 
 async function loadProjects() {
     try {
@@ -699,50 +1241,20 @@ async function loadProjects() {
         const data = await response.json();
 
         if (data.success) {
-            displayProjectsInSidebar(data.projects);
-            displayProjectsInTab(data.projects);
+            state.projects = data.projects;
+            renderProjects();
+            renderSidebarProjects();
         }
     } catch (error) {
-        console.error('Error loading projects:', error);
+        console.error('Erro ao carregar projetos:', error);
     }
 }
 
-async function loadTags() {
-    try {
-        const response = await fetch('/api/tags');
-        const data = await response.json();
-
-        if (data.success) {
-            displayTagsInSidebar(data.tags);
-        }
-    } catch (error) {
-        console.error('Error loading tags:', error);
-    }
-}
-
-function displayProjectsInSidebar(projects) {
-    const container = document.getElementById('sidebarProjects');
-
-    if (projects.length === 0) {
-        container.innerHTML = '<p class="empty-state">Nenhum projeto ainda</p>';
-        return;
-    }
-
-    const filtered = selectedTag ? projects.filter(p => p.tags.includes(selectedTag)) : projects;
-
-    container.innerHTML = filtered.map(project => `
-        <div class="project-item ${project.id === selectedProjectId ? 'active' : ''}" 
-             onclick="selectProject('${project.id}')">
-            <div class="project-name">${project.name}</div>
-            <div class="project-meta">${project.videos?.length || 0} vídeos</div>
-        </div>
-    `).join('');
-}
-
-function displayProjectsInTab(projects) {
+function renderProjects() {
     const container = document.getElementById('projectsList');
+    if (!container) return;
 
-    if (projects.length === 0) {
+    if (state.projects.length === 0) {
         container.innerHTML = `
             <div class="empty-state-large">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
@@ -755,21 +1267,15 @@ function displayProjectsInTab(projects) {
         return;
     }
 
-    container.innerHTML = projects.map(project => `
-        <div class="project-card">
+    container.innerHTML = state.projects.map(project => `
+        <div class="project-card" data-id="${project.id}">
             <div class="project-header">
                 <div>
                     <div class="project-title">${project.name}</div>
-                    <div class="project-description">${project.description || ''}</div>
+                    ${project.description ? `<div class="project-description">${project.description}</div>` : ''}
                 </div>
                 <div class="project-actions">
-                    <button class="btn-icon" onclick="editProject('${project.id}')" title="Editar">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" onclick="deleteProject('${project.id}')" title="Deletar">
+                    <button class="btn-icon" onclick="deleteProject('${project.id}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -778,7 +1284,7 @@ function displayProjectsInTab(projects) {
                 </div>
             </div>
             <div class="project-tags">
-                ${project.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('')}
+                ${(project.tags || []).map(tag => `<span class="tag-badge">${tag}</span>`).join('')}
             </div>
             <div class="project-stats">
                 <div class="project-stat">
@@ -786,73 +1292,35 @@ function displayProjectsInTab(projects) {
                         <path d="M23 7l-7 5 7 5V7z"></path>
                         <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                     </svg>
-                    ${project.videos?.length || 0} vídeos
+                    ${(project.videos || []).length} vídeos
                 </div>
-                <div class="project-stat">Criado em ${new Date(project.created_at).toLocaleDateString()}</div>
+                <div class="project-stat">
+                    ${formatDate(project.created_at)}
+                </div>
             </div>
         </div>
     `).join('');
 }
 
-function displayTagsInSidebar(tags) {
-    const container = document.getElementById('sidebarTags');
+function renderSidebarProjects() {
+    const container = document.getElementById('sidebarProjects');
+    if (!container) return;
 
-    container.innerHTML = `
-        <div class="tag-badge ${!selectedTag ? 'active' : ''}" onclick="filterByTag('')">Todos</div>
-        ${tags.map(tag => `
-            <div class="tag-badge ${selectedTag === tag.name ? 'active' : ''}" 
-                 onclick="filterByTag('${tag.name}')">${tag.name}</div>
-        `).join('')}
-    `;
-}
-
-function filterByTag(tag) {
-    selectedTag = tag;
-    loadProjects();
-    loadTags();
-}
-
-function selectProject(projectId) {
-    selectedProjectId = projectId;
-    loadProjects();
-}
-
-function showNewProjectModal() {
-    // Simple prompt for now - can be replaced with custom modal
-    const name = prompt('Nome do projeto:');
-    if (!name) return;
-
-    const description = prompt('Descrição (opcional):');
-    const tagsStr = prompt('Tags (separe por vírgula):');
-    const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()) : [];
-
-    createProject({ name, description, tags });
-}
-
-async function createProject(projectData) {
-    try {
-        const response = await fetch('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(projectData)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showStatusMessage('success', 'Projeto criado com sucesso!');
-            loadProjects();
-            loadTags();
-        } else {
-            showStatusMessage('error', data.error);
-        }
-    } catch (error) {
-        showStatusMessage('error', `Erro ao criar projeto: ${error.message}`);
+    if (state.projects.length === 0) {
+        container.innerHTML = '<p class="empty-state">Nenhum projeto ainda</p>';
+        return;
     }
+
+    container.innerHTML = state.projects.map(project => `
+        <div class="project-item" data-id="${project.id}" onclick="selectProject('${project.id}')">
+            <div class="project-name">${project.name}</div>
+            <div class="project-meta">${(project.videos || []).length} vídeos</div>
+        </div>
+    `).join('');
 }
 
 async function deleteProject(projectId) {
-    if (!confirm('Tem certeza que deseja deletar este projeto?')) return;
+    if (!confirm('Tem certeza que deseja excluir este projeto?')) return;
 
     try {
         const response = await fetch(`/api/projects/${projectId}`, {
@@ -862,1134 +1330,73 @@ async function deleteProject(projectId) {
         const data = await response.json();
 
         if (data.success) {
-            showStatusMessage('success', 'Projeto deletado!');
             loadProjects();
         } else {
-            showStatusMessage('error', data.error);
+            alert('Erro ao excluir projeto: ' + data.error);
         }
     } catch (error) {
-        showStatusMessage('error', `Erro ao deletar projeto: ${error.message}`);
+        console.error('Erro ao excluir projeto:', error);
     }
 }
 
-function showManageTagsModal() {
-    const newTag = prompt('Nome da nova tag:');
-    if (!newTag) return;
-
-    createTag(newTag);
-}
-
-async function createTag(tagName) {
-    try {
-        const response = await fetch('/api/tags', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tag_name: tagName })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showStatusMessage('success', 'Tag criada!');
-            loadTags();
-        } else {
-            showStatusMessage('error', data.error);
-        }
-    } catch (error) {
-        showStatusMessage('error', `Erro ao criar tag: ${error.message}`);
-    }
-}
-
-// ============================================================================
-// AVATARS MANAGEMENT
-// ============================================================================
-
-function initAvatarsManagement() {
-    loadAvatars();
-
-    const btnUpload = document.getElementById('btnUploadAvatar');
-    const fileInput = document.getElementById('avatarUploadInput');
-
-    btnUpload?.addEventListener('click', () => fileInput.click());
-    fileInput?.addEventListener('change', (e) => uploadAvatar(e.target.files[0]));
-}
-
-async function loadAvatars() {
-    try {
-        const response = await fetch('/api/avatars');
-        const data = await response.json();
-
-        if (data.success) {
-            displayAvatarsGallery(data.avatars);
-        }
-    } catch (error) {
-        console.error('Error loading avatars:', error);
-    }
-}
-
-function displayAvatarsGallery(avatars) {
-    const container = document.getElementById('avatarsGallery');
-
-    if (avatars.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state-large">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <p>Nenhum avatar salvo ainda</p>
-                <p class="hint">Faça upload de imagens template para usar nos vídeos</p>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = avatars.map(avatar => `
-        <div class="avatar-item">
-            <img class="avatar-image" src="/api/avatars/${avatar.id}/image" alt="${avatar.name}">
-            <div class="avatar-info">
-                <div class="avatar-name">${avatar.name}</div>
-                <div class="avatar-date">${new Date(avatar.created_at).toLocaleDateString()}</div>
-                <div class="avatar-actions">
-                    <button class="btn-avatar-action" onclick="useAvatar('${avatar.id}')">Usar</button>
-                    <button class="btn-avatar-action" onclick="deleteAvatar('${avatar.id}')">Deletar</button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function uploadAvatar(file) {
-    if (!file) return;
-
-    const name = prompt('Nome para este avatar:');
-    if (!name) return;
-
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('name', name);
-
-    try {
-        const response = await fetch('/api/avatars', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showStatusMessage('success', 'Avatar criado com sucesso!');
-            loadAvatars();
-        } else {
-            showStatusMessage('error', data.error);
-        }
-    } catch (error) {
-        showStatusMessage('error', `Erro ao fazer upload: ${error.message}`);
-    }
-}
-
-async function deleteAvatar(avatarId) {
-    if (!confirm('Deletar este avatar?')) return;
-
-    try {
-        const response = await fetch(`/api/avatars/${avatarId}`, {
-            method: 'DELETE'
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showStatusMessage('success', 'Avatar deletado!');
-            loadAvatars();
-        } else {
-            showStatusMessage('error', data.error);
-        }
-    } catch (error) {
-        showStatusMessage('error', `Erro ao deletar avatar: ${error.message}`);
-    }
-}
-
-function useAvatar(avatarId) {
-    showStatusMessage('info', 'Avatar selecionado! Use na geração de vídeos.');
-    // TODO: Integrate with video generation
-}
-
-// ============================================================================
-// JOBS TIMELINE
-// ============================================================================
-
-let jobsRefreshInterval = null;
-
-function initJobsTimeline() {
-    loadJobs();
-
-    // Refresh button
-    document.getElementById('btnRefreshJobs')?.addEventListener('click', loadJobs);
-
-    // Auto-refresh every 5 seconds when on jobs tab
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('[data-tab="jobs"]')) {
-            startJobsAutoRefresh();
-        } else if (e.target.closest('.tab-btn') && !e.target.closest('[data-tab="jobs"]')) {
-            stopJobsAutoRefresh();
-        }
-    });
-}
-
-function startJobsAutoRefresh() {
-    if (jobsRefreshInterval) return;
-    jobsRefreshInterval = setInterval(loadJobs, 5000);
-}
-
-function stopJobsAutoRefresh() {
-    if (jobsRefreshInterval) {
-        clearInterval(jobsRefreshInterval);
-        jobsRefreshInterval = null;
-    }
-}
-
-async function loadJobs() {
-    try {
-        const response = await fetch('/api/jobs');
-        const data = await response.json();
-
-        if (data.success) {
-            displayJobsTimeline(data.jobs);
-        }
-    } catch (error) {
-        console.error('Error loading jobs:', error);
-    }
-}
-
-function displayJobsTimeline(jobs) {
-    const container = document.getElementById('jobsTimeline');
-
-    if (jobs.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state-large">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <p>Nenhum job em processamento</p>
-            </div>
-        `;
-        return;
-    }
-
-    // Sort by date, newest first
-    jobs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    container.innerHTML = jobs.map(job => `
-        <div class="job-item">
-            <div class="job-header">
-                <div class="job-title">${job.type} - Job #${job.id}</div>
-                <span class="job-status ${job.status}">${getStatusText(job.status)}</span>
-            </div>
-            <div class="job-info">
-                <div>Criado: ${new Date(job.created_at).toLocaleString()}</div>
-                ${job.video_path ? `<div>Vídeo: ${job.video_path.split('/').pop()}</div>` : ''}
-            </div>
-            ${job.status === 'processing' ? `
-                <div class="job-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 50%"></div>
-                    </div>
-                </div>
-            ` : ''}
-            ${job.status === 'completed' && job.video_path ? `
-                <div class="job-actions">
-                    <button class="btn btn-secondary" onclick="downloadJobVideo('${job.video_path}')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Download
-                    </button>
-                </div>
-            ` : ''}
-        </div>
-    `).join('');
-}
-
-function getStatusText(status) {
-    const statusMap = {
-        'pending': 'Pendente',
-        'processing': 'Processando',
-        'completed': 'Concluído',
-        'failed': 'Falhou'
-    };
-    return statusMap[status] || status;
-}
-
-function downloadJobVideo(videoPath) {
-    window.open(`/api/download/${encodeURIComponent(videoPath)}`, '_blank');
-}
-
-// Update initialization to include new features
-const originalInitializeApp = window.initializeApp || initializeApp;
-window.initializeApp = function () {
-    originalInitializeApp();
-    initProjectsManagement();
-    initAvatarsManagement();
-    initJobsTimeline();
-};
-// ============================================================================
-// UI ENHANCEMENTS - AVATAR SELECTOR & IMAGE SOURCE
-// ============================================================================
-
-let currentImageSource = {
-    single: 'upload', // 'upload' or 'avatar'
-    multi: 'upload'
-};
-
-let selectedAvatarId = {
-    single: null,
-    multi: null
-};
-
-function injectAvatarSelectors() {
-    // Inject for Single Video Tab
-    injectAvatarSelectorInTab('single', 'singleImages');
-
-    // Inject for Multi Scripts Tab  
-    injectAvatarSelectorInTab('multi', 'multiImages');
-}
-
-function injectAvatarSelectorInTab(mode, uploadInputId) {
-    const uploadInput = document.getElementById(uploadInputId);
-    if (!uploadInput) return;
-
-    const formGroup = uploadInput.closest('.form-group');
-    if (!formGroup) return;
-
-    // Check if already injected
-    if (formGroup.querySelector('.image-source-toggle')) return;
-
-    const label = formGroup.querySelector('label');
-
-    // Create toggle buttons
-    const toggle = document.createElement('div');
-    toggle.className = 'image-source-toggle';
-    toggle.innerHTML = `
-        <button class="toggle-btn active" data-source="upload" onclick="toggleImageSource('${mode}', 'upload')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Upload Novo
-        </button>
-        <button class="toggle-btn" data-source="avatar" onclick="toggleImageSource('${mode}', 'avatar')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            Usar Avatar
-        </button>
-    `;
-
-    // Create avatar selector (hidden by default)
-    const avatarSelector = document.createElement('div');
-    avatarSelector.id = `${mode}AvatarSelector`;
-    avatarSelector.className = 'avatar-selector';
-    avatarSelector.style.display = 'none';
-    avatarSelector.innerHTML = `
-        <div id="${mode}AvatarGrid" class="avatar-selector-grid">
-            <div class="empty-state">Carregando avatares...</div>
-        </div>
-    `;
-
-    // Find upload area and wrap it
-    const uploadArea = formGroup.querySelector('.upload-area');
-    const uploadContainer = document.createElement('div');
-    uploadContainer.id = `${mode}UploadContainer`;
-    uploadContainer.className = 'upload-container';
-
-    // Insert toggle after label
-    label.after(toggle);
-
-    // Insert avatar selector after toggle
-    toggle.after(avatarSelector);
-
-    // Move upload area into container
-    if (uploadArea) {
-        uploadArea.before(uploadContainer);
-        uploadContainer.appendChild(uploadArea);
-        const imagePreview = formGroup.querySelector(`#${mode}ImagePreview`);
-        if (imagePreview) {
-            uploadContainer.appendChild(imagePreview);
-        }
-    }
-
-    // Load avatars for this selector
-    loadAvatarsForSelector(mode);
-}
-
-function toggleImageSource(mode, source) {
-    currentImageSource[mode] = source;
-
-    // Update button states
-    const formGroup = document.getElementById(`${mode}Images`)?.closest('.form-group');
-    if (!formGroup) return;
-
-    const buttons = formGroup.querySelectorAll('.toggle-btn');
-    buttons.forEach(btn => {
-        if (btn.dataset.source === source) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-
-    // Show/hide appropriate sections
-    const avatarSelector = document.getElementById(`${mode}AvatarSelector`);
-    const uploadContainer = document.getElementById(`${mode}UploadContainer`);
-
-    if (source === 'avatar') {
-        if (avatarSelector) avatarSelector.style.display = 'block';
-        if (uploadContainer) uploadContainer.style.display = 'none';
-    } else {
-        if (avatarSelector) avatarSelector.style.display = 'none';
-        if (uploadContainer) uploadContainer.style.display = 'block';
-    }
-}
-
-async function loadAvatarsForSelector(mode) {
-    try {
-        const response = await fetch('/api/avatars');
-        const data = await response.json();
-
-        const grid = document.getElementById(`${mode}AvatarGrid`);
-        if (!grid) return;
-
-        if (!data.success || data.avatars.length === 0) {
-            grid.innerHTML = '<div class="empty-state">Nenhum avatar disponível. Crie um na aba "My Avatars".</div>';
-            return;
-        }
-
-        grid.innerHTML = data.avatars.map(avatar => `
-            <div class="avatar-selector-item" onclick="selectAvatarForMode('${mode}', '${avatar.id}')" data-avatar-id="${avatar.id}">
-                <img src="/api/avatars/${avatar.id}/image" alt="${avatar.name}">
-                <div class="avatar-selector-name">${avatar.name}</div>
-            </div>
-        `).join('');
-
-    } catch (error) {
-        console.error('Error loading avatars:', error);
-    }
-}
-
-function selectAvatarForMode(mode, avatarId) {
-    selectedAvatarId[mode] = avatarId;
-
-    // Update visual selection
-    const grid = document.getElementById(`${mode}AvatarGrid`);
-    if (!grid) return;
-
-    grid.querySelectorAll('.avatar-selector-item').forEach(item => {
-        if (item.dataset.avatarId === avatarId) {
-            item.classList.add('selected');
-        } else {
-            item.classList.remove('selected');
-        }
+function selectProject(projectId) {
+    state.currentProject = projectId;
+    document.querySelectorAll('.project-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.id === projectId);
     });
 }
 
 // ============================================================================
-// AUTO-REDIRECT TO JOBS TIMELINE
+// UTILITIES
 // ============================================================================
 
-function redirectToJobsTimeline(jobId = null) {
-    // Switch to jobs tab
-    const jobsTabBtn = document.querySelector('[data-tab="jobs"]');
-    if (jobsTabBtn) {
-        jobsTabBtn.click();
-    }
+function showMessage(containerId, message, type) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-    // Start auto-refresh
-    startJobsAutoRefresh();
+    const div = document.createElement('div');
+    div.className = `status-message status-${type}`;
+    div.textContent = message;
+    container.appendChild(div);
 
-    // If jobId provided, highlight it
-    if (jobId) {
-        setTimeout(() => highlightJob(jobId), 500);
-    }
+    setTimeout(() => div.remove(), 5000);
 }
 
-function highlightJob(jobId) {
-    const jobItem = document.querySelector(`[data-job-id="${jobId}"]`);
-    if (jobItem) {
-        jobItem.style.animation = 'pulse 1s ease-in-out 3';
-        jobItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-}
-
-// ============================================================================
-// VIDEO HISTORY
-// ============================================================================
-
-function createVideoHistoryModal() {
-    // Check if already exists
-    if (document.getElementById('videoHistoryModal')) return;
-
-    const modal = document.createElement('div');
-    modal.id = 'videoHistoryModal';
-    modal.className = 'video-history-modal modal';
-    modal.innerHTML = `
-        <div class="modal-overlay" onclick="closeVideoHistory()"></div>
-        <div class="video-history-content">
-            <div class="video-history-header">
-                <h2>Histórico de Vídeos</h2>
-                <button class="modal-close" onclick="closeVideoHistory()">×</button>
-            </div>
-            <div id="videoHistoryGrid" class="video-history-grid">
-                <div class="empty-state-large">Carregando...</div>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-}
-
-function showVideoHistory() {
-    createVideoHistoryModal();
-    const modal = document.getElementById('videoHistoryModal');
-    modal.classList.add('active');
-    loadVideoHistory();
-}
-
-function closeVideoHistory() {
-    const modal = document.getElementById('videoHistoryModal');
-    if (modal) {
-        modal.classList.remove('active');
-    }
-}
-
-async function loadVideoHistory() {
-    try {
-        const response = await fetch('/api/videos/history');
-        const data = await response.json();
-
-        const grid = document.getElementById('videoHistoryGrid');
-        if (!grid) return;
-
-        if (!data.success || data.videos.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state-large">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-                        <line x1="7" y1="2" x2="7" y2="22"></line>
-                        <line x1="17" y1="2" x2="17" y2="22"></line>
-                        <line x1="2" y1="12" x2="22" y2="12"></line>
-                        <line x1="2" y1="7" x2="7" y2="7"></line>
-                        <line x1="2" y1="17" x2="7" y2="17"></line>
-                        <line x1="17" y1="17" x2="22" y2="17"></line>
-                        <line x1="17" y1="7" x2="22" y2="7"></line>
-                    </svg>
-                    <p>Nenhum vídeo no histórico</p>
-                </div>
-            `;
-            return;
-        }
-
-        grid.innerHTML = data.videos.map(video => `
-            <div class="video-history-card" onclick="playHistoryVideo('${video.path}')">
-                <div class="video-history-thumbnail">
-                    <video src="/api/download/${encodeURIComponent(video.path)}" preload="metadata"></video>
-                    <div class="video-history-play-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                    </div>
-                </div>
-                <div class="video-history-info">
-                    <div class="video-history-title">${video.filename}</div>
-                    <div class="video-history-meta">
-                        <span>${video.date}</span>
-                        <span>${video.size}</span>
-                    </div>
-                </div>
-                <div class="video-history-actions">
-                    <button class="btn-history-action" onclick="event.stopPropagation(); downloadHistoryVideo('${video.path}')">
-                        Download
-                    </button>
-                </div>
-            </div>
-        `).join('');
-
-    } catch (error) {
-        console.error('Error loading video history:', error);
-    }
-}
-
-function playHistoryVideo(videoPath) {
-    displayVideo(videoPath);
-    closeVideoHistory();
-
-    // Switch to single video tab to show player
-    const singleTab = document.querySelector('[data-tab="single"]');
-    if (singleTab) singleTab.click();
-}
-
-function downloadHistoryVideo(videoPath) {
-    window.open(`/api/download/${encodeURIComponent(videoPath)}`, '_blank');
-}
-
-// Add history button to jobs timeline
-function addVideoHistoryButton() {
-    const jobsCard = document.querySelector('#tab-jobs .card-header-row');
-    if (!jobsCard || jobsCard.querySelector('#btnVideoHistory')) return;
-
-    const btn = document.createElement('button');
-    btn.id = 'btnVideoHistory';
-    btn.className = 'btn btn-secondary';
-    btn.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        </svg>
-        Ver Histórico
-    `;
-    btn.onclick = showVideoHistory;
-
-    const refreshBtn = document.getElementById('btnRefreshJobs');
-    if (refreshBtn) {
-        refreshBtn.after(btn);
-    }
-}
-
-// ============================================================================
-// ENHANCED JOB DISPLAY
-// ============================================================================
-
-const originalDisplayJobsTimeline = window.displayJobsTimeline;
-
-window.displayJobsTimeline = function (jobs) {
-    const container = document.getElementById('jobsTimeline');
-
-    if (jobs.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state-large">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <p>Nenhum job em processamento</p>
-            </div>
-        `;
-        return;
-    }
-
-    jobs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    container.innerHTML = jobs.map(job => createEnhancedJobCard(job)).join('');
-};
-
-function createEnhancedJobCard(job) {
-    const hasVideo = job.status === 'completed' && job.video_path;
-
-    return `
-        <div class="job-item" data-job-id="${job.id}">
-            <div class="job-header">
-                <div class="job-title">${job.type} - Job #${job.id}</div>
-                <span class="job-status ${job.status}">${getStatusText(job.status)}</span>
-            </div>
-            <div class="job-info">
-                <div>Criado: ${new Date(job.created_at).toLocaleString()}</div>
-                ${job.video_path ? `<div>Vídeo: ${job.video_path.split('/').pop()}</div>` : ''}
-            </div>
-            ${job.status === 'processing' ? `
-                <div class="job-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${job.progress || 50}%"></div>
-                    </div>
-                    <div class="job-progress-percent">${job.progress || 50}%</div>
-                </div>
-            ` : ''}
-            ${hasVideo ? `
-                <div class="job-video-preview">
-                    <video src="/api/download/${encodeURIComponent(job.video_path)}" controls preload="metadata"></video>
-                </div>
-                <div class="job-actions">
-                    <button class="btn btn-secondary" onclick="downloadJobVideo('${job.video_path}')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Download
-                    </button>
-                </div>
-            ` : ''}
-        </div>
-    `;
-}
-
-// ============================================================================
-// MODIFY VIDEO GENERATION TO AUTO-REDIRECT
-// ============================================================================
-
-const originalGenerateSingleVideo = window.generateSingleVideo;
-const originalProcessBatchVideos = window.processBatchVideos;
-
-window.generateSingleVideo = async function () {
-    // Call original function
-    const result = await originalGenerateSingleVideo.call(this);
-
-    // Auto-redirect to jobs timeline
-    setTimeout(() => redirectToJobsTimeline(), 500);
-
-    return result;
-};
-
-window.processBatchVideos = async function () {
-    // Call original function  
-    const result = await originalProcessBatchVideos.call(this);
-
-    // Auto-redirect to jobs timeline
-    setTimeout(() => redirectToJobsTimeline(), 500);
-
-    return result;
-};
-
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-
-// Wait for DOM and original app to init
-const originalInit = window.initializeApp;
-window.initializeApp = function () {
-    // Call original initialization
-    if (originalInit) originalInit();
-
-    // Add our enhancements
-    setTimeout(() => {
-        injectAvatarSelectors();
-        addVideoHistoryButton();
-    }, 100);
-};
-
-// Pulse animation for highlighting
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); box-shadow: var(--shadow-md); }
-        50% { transform: scale(1.02); box-shadow: var(--shadow-lg), 0 0 20px rgba(102, 126, 234, 0.5); }
-    }
-`;
-document.head.appendChild(style);
-
-// ============================================================================
-// AVATAR SELECTOR & IMAGE SOURCE MANAGEMENT
-// ============================================================================
-
-let selectedAvatars = {
-    single: null,
-    multi: null
-};
-
-let imageSourceMode = {
-    single: 'avatars',  // 'avatars' or 'upload'
-    multi: 'avatars'
-};
-
-let batchImageAssignments = {}; // { batchId: { type: 'shared' | 'specific', imageData: ... } }
-
-function toggleImageSource(mode, source) {
-    imageSourceMode[mode] = source;
-
-    // Update toggle buttons
-    const container = mode === 'single' ?
-        document.querySelector('#tab-single') :
-        document.querySelector('#tab-preview');
-
-    const buttons = container.querySelectorAll('.toggle-btn');
-    buttons.forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.source === source) {
-            btn.classList.add('active');
-        }
+function formatDate(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
     });
-
-    // Show/hide appropriate sections
-    const avatarSelector = document.getElementById(`${mode}AvatarSelector`);
-    const uploadSection = document.getElementById(`${mode}UploadSection`);
-
-    if (source === 'avatars') {
-        avatarSelector.style.display = 'grid';
-        uploadSection.style.display = 'none';
-        loadAvatarsIntoSelector(mode);
-    } else {
-        avatarSelector.style.display = 'none';
-        uploadSection.style.display = 'block';
-    }
-}
-
-async function loadAvatarsIntoSelector(mode) {
-    const container = document.getElementById(`${mode}AvatarSelector`);
-
-    try {
-        const response = await fetch('/api/avatars');
-        const data = await response.json();
-
-        if (data.success && data.avatars.length > 0) {
-            container.innerHTML = data.avatars.map(avatar => `
-                <div class="avatar-selector-item ${selectedAvatars[mode] === avatar.id ? 'selected' : ''}" 
-                     onclick="selectAvatarForGeneration('${mode}', '${avatar.id}')">
-                    <img class="avatar-selector-thumb" 
-                         src="/api/avatars/${avatar.id}/image" 
-                         alt="${avatar.name}">
-                    <span class="avatar-selector-name">${avatar.name}</span>
-                </div>
-            `).join('');
-        } else {
-            container.innerHTML = `
-                <p class="loading-text">
-                    Nenhum avatar salvo. 
-                    <a href="#" onclick="document.querySelector('[data-tab=\\"avatars\\"]').click(); return false;">
-                        Criar avatar
-                    </a>
-                </p>
-            `;
-        }
-    } catch (error) {
-        container.innerHTML = '<p class="loading-text">Erro ao carregar avatares</p>';
-        console.error('Error loading avatars:', error);
-    }
-}
-
-function selectAvatarForGeneration(mode, avatarId) {
-    selectedAvatars[mode] = avatarId;
-    loadAvatarsIntoSelector(mode);
-}
-
-async function getImagesForGeneration(mode) {
-    if (imageSourceMode[mode] === 'avatars' && selectedAvatars[mode]) {
-        // Get avatar image path
-        try {
-            const response = await fetch(`/api/avatars/${selectedAvatars[mode]}`);
-            const data = await response.json();
-
-            if (data.success) {
-                return [data.avatar.image_path];
-            }
-        } catch (error) {
-            console.error('Error getting avatar:', error);
-        }
-    }
-
-    // Fallback to uploaded images
-    const images = mode === 'single' ? AppState.singleImages : AppState.multiImages;
-    if (images.length > 0) {
-        return await uploadImages(images);
-    }
-
-    throw new Error('Nenhuma imagem selecionada');
-}
-
-// ============================================================================
-// BATCH IMAGE ASSIGNMENT
-// ============================================================================
-
-function initBatchImageSelectors() {
-    // Called after preview is generated
-    const batchCards = document.querySelectorAll('.batch-card');
-
-    batchCards.forEach((card, idx) => {
-        const batchId = `batch_${idx}`;
-
-        // Add image selector UI to batch card
-        const selector = document.createElement('div');
-        selector.className = 'batch-image-selector';
-        selector.innerHTML = `
-            <div class="batch-image-options">
-                <button class="batch-image-btn active" data-option="shared" onclick="setBatchImageOption('${batchId}', 'shared')">
-                    Usar Imagem Compartilhada
-                </button>
-                <button class="batch-image-btn" data-option="specific" onclick="setBatchImageOption('${batchId}', 'specific')">
-                    Imagem Específica
-                </button>
-            </div>
-            <div id="${batchId}_upload" style="display: none;">
-                <div class="batch-upload-mini" onclick="document.getElementById('${batchId}_file').click()">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    <p style="font-size: 0.75rem; margin: 0;">Clique para selecionar</p>
-                </div>
-                <input type="file" id="${batchId}_file" accept="image/*" style="display: none;" 
-                       onchange="handleBatchImageUpload('${batchId}', this.files[0])">
-                <div id="${batchId}_preview"></div>
-            </div>
-        `;
-
-        card.appendChild(selector);
-
-        // Initialize with shared option
-        batchImageAssignments[batchId] = { type: 'shared', imageData: null };
-    });
-}
-
-function setBatchImageOption(batchId, option) {
-    const card = document.querySelector(`#${batchId}_upload`).parentElement;
-    const buttons = card.querySelectorAll('.batch-image-btn');
-
-    buttons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.option === option);
-    });
-
-    const uploadSection = document.getElementById(`${batchId}_upload`);
-    uploadSection.style.display = option === 'specific' ? 'block' : 'none';
-
-    batchImageAssignments[batchId].type = option;
-}
-
-function handleBatchImageUpload(batchId, file) {
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const preview = document.getElementById(`${batchId}_preview`);
-        preview.innerHTML = `
-            <div class="batch-selected-image">
-                <img class="batch-thumb" src="${e.target.result}" alt="Batch image">
-                <span style="flex: 1; font-size: 0.875rem;">${file.name}</span>
-                <button class="btn-icon" onclick="clearBatchImage('${batchId}')" title="Remover">×</button>
-            </div>
-        `;
-
-        batchImageAssignments[batchId].imageData = file;
-    };
-    reader.readAsDataURL(file);
-}
-
-function clearBatchImage(batchId) {
-    document.getElementById(`${batchId}_preview`).innerHTML = '';
-    batchImageAssignments[batchId].imageData = null;
-}
-
-async function getBatchImagePaths() {
-    // Upload all batch-specific images first
-    const specificImages = [];
-    const batchMapping = {};
-
-    for (const [batchId, assignment] of Object.entries(batchImageAssignments)) {
-        if (assignment.type === 'specific' && assignment.imageData) {
-            specificImages.push(assignment.imageData);
-        }
-    }
-
-    if (specificImages.length > 0) {
-        const formData = new FormData();
-        specificImages.forEach(img => formData.append('images', img));
-
-        const response = await fetch('/api/upload/images', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            let pathIndex = 0;
-            for (const [batchId, assignment] of Object.entries(batchImageAssignments)) {
-                if (assignment.type === 'specific' && assignment.imageData) {
-                    batchMapping[batchId] = data.paths[pathIndex++];
-                }
-            }
-        }
-    }
-
-    return batchMapping;
-}
-
-// ============================================================================
-// VIDEO HISTORY
-// ============================================================================
-
-async function loadVideoHistory() {
-    try {
-        const response = await fetch('/api/videos/history');
-        const data = await response.json();
-
-        if (data.success) {
-            displayVideoHistory(data.videos);
-        }
-    } catch (error) {
-        console.error('Error loading video history:', error);
-    }
-}
-
-function displayVideoHistory(videos) {
-    const container = document.getElementById('videoHistoryGrid');
-
-    if (!videos || videos.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state-large" style="grid-column: 1/-1;">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-                    <line x1="7" y1="2" x2="7" y2="22"></line>
-                    <line x1="17" y1="2" x2="17" y2="22"></line>
-                    <line x1="2" y1="12" x2="22" y2="12"></line>
-                    <line x1="2" y1="7" x2="7" y2="7"></line>
-                    <line x1="2" y1="17" x2="7" y2="17"></line>
-                    <line x1="17" y1="17" x2="22" y2="17"></line>
-                    <line x1="17" y1="7" x2="22" y2="7"></line>
-                </svg>
-                <p>Nenhum vídeo no histórico</p>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = videos.map(video => `
-        <div class="video-history-item">
-            <video class="video-history-thumb" 
-                   src="/api/download/${encodeURIComponent(video.path)}" 
-                   preload="metadata"></video>
-            <div class="video-history-info">
-                <div class="video-history-name">${video.name}</div>
-                <div class="video-history-meta">
-                    ${formatDate(video.created_at)} • ${formatFileSize(video.size)}
-                </div>
-                <div class="video-history-actions">
-                    <button class="btn btn-secondary" onclick="playVideo('${video.path}')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                        Play
-                    </button>
-                    <button class="btn btn-secondary" onclick="downloadVideo('${video.path}')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function playVideo(path) {
-    // Open video in modal or navigate to jobs tab
-    const videoPlayer = document.getElementById('videoPlayer');
-    videoPlayer.src = `/api/download/${encodeURIComponent(path)}`;
-    document.getElementById('videoContainer').style.display = 'block';
-
-    // Switch to single video tab to show player
-    document.querySelector('[data-tab="single"]').click();
-    videoPlayer.scrollIntoView({ behavior: 'smooth' });
-}
-
-function downloadVideo(path) {
-    window.open(`/api/download/${encodeURIComponent(path)}`, '_blank');
-}
-
-// ============================================================================
-// ENHANCED JOBS TIMELINE WITH VIDEO PREVIEWS
-// ============================================================================
-
-function displayJobsTimelineEnhanced(jobs) {
-    const container = document.getElementById('jobsTimeline');
-
-    if (jobs.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state-large">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <p>Nenhum job em processamento</p>
-            </div>
-        `;
-        return;
-    }
-
-    jobs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    container.innerHTML = jobs.map(job => `
-        <div class="job-item">
-            <div class="job-header">
-                <div class="job-title">${job.type} - Job #${job.id}</div>
-                <span class="job-status ${job.status}">${getStatusText(job.status)}</span>
-            </div>
-            
-            <div class="job-info">
-                <div>Criado: ${new Date(job.created_at).toLocaleString()}</div>
-                ${job.completed_at ? `<div>Concluído: ${new Date(job.completed_at).toLocaleString()}</div>` : ''}
-            </div>
-            
-            ${job.status === 'processing' ? `
-                <div class="job-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${job.progress || 50}%"></div>
-                    </div>
-                    <p class="progress-text">Processando... ${job.progress || 50}%</p>
-                </div>
-            ` : ''}
-            
-            ${job.status === 'completed' && job.video_path ? `
-                <div class="job-video-preview">
-                    <video controls preload="metadata">
-                        <source src="/api/download/${encodeURIComponent(job.video_path)}" type="video/mp4">
-                    </video>
-                </div>
-                
-                <div class="job-metadata">
-                    <div class="job-metadata-item">
-                        <div class="job-metadata-label">Vídeo</div>
-                        <div class="job-metadata-value">${job.video_path.split('/').pop()}</div>
-                    </div>
-                    ${job.metadata ? `
-                        ${job.metadata.duration ? `
-                            <div class="job-metadata-item">
-                                <div class="job-metadata-label">Duração</div>
-                                <div class="job-metadata-value">${job.metadata.duration}s</div>
-                            </div>
-                        ` : ''}
-                    ` : ''}
-                </div>
-                
-                <div class="job-actions">
-                    <button class="btn btn-primary" onclick="downloadJobVideo('${job.video_path}')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Download
-                    </button>
-                </div>
-            ` : ''}
-        </div>
-    `).join('');
-}
-
-// Update the original displayJobsTimeline to use enhanced version
-window.displayJobsTimeline = displayJobsTimelineEnhanced;
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', () => {
-    // Load avatars into selectors on init
-    if (document.getElementById('singleAvatarSelector')) {
-        loadAvatarsIntoSelector('single');
-    }
-    if (document.getElementById('multiAvatarSelector')) {
-        loadAvatarsIntoSelector('multi');
-    }
-});
+// Make functions globally accessible
+window.toggleImageSource = toggleImageSource;
+window.setBatchImageMode = setBatchImageMode;
+window.selectAvatar = selectAvatar;
+window.selectAvatarForUse = selectAvatarForUse;
+window.deleteAvatar = deleteAvatar;
+window.cancelAvatarUpload = cancelAvatarUpload;
+window.saveAvatar = saveAvatar;
+window.removeImage = removeImage;
+window.updateVoiceSelection = updateVoiceSelection;
+window.generateBatchVideos = generateBatchVideos;
+window.selectBatchImage = selectBatchImage;
+window.downloadVideoByPath = downloadVideoByPath;
+window.playVideo = playVideo;
+window.loadVideoHistory = loadVideoHistory;
+window.loadProcessingJobs = loadProcessingJobs;
+window.selectProject = selectProject;
+window.deleteProject = deleteProject;

@@ -67,9 +67,9 @@
                         <span class="tab-icon">🎯</span>
                         Múltiplos com Preview
                     </button>
-                    <button class="tab-btn" data-tab="jobs">
-                        <span class="tab-icon">⏱️</span>
-                        Jobs Timeline
+                    <button class="tab-btn" data-tab="loading">
+                        <span class="tab-icon">⏳</span>
+                        Carregamento
                     </button>
                     <button class="tab-btn" data-tab="avatars">
                         <span class="tab-icon">👤</span>
@@ -85,6 +85,7 @@
                     </button>
                 </div>
 
+                <!-- TAB: SINGLE VIDEO -->
                 <div class="tab-content active" id="tab-single">
                     <div class="content-grid">
                         <div class="form-section">
@@ -141,12 +142,12 @@ Cada parágrafo será processado separadamente."></textarea>
                                             Upload Novo
                                         </button>
                                     </div>
-                                    
+
                                     <!-- Avatar Selector Grid -->
                                     <div id="singleAvatarSelector" class="avatar-selector-grid">
                                         <p class="loading-text">Carregando avatares...</p>
                                     </div>
-                                    
+
                                     <!-- Upload Area (initially hidden) -->
                                     <div id="singleUploadSection" style="display: none;">
                                         <div class="upload-area" id="singleUploadArea">
@@ -206,21 +207,24 @@ Cada parágrafo será processado separadamente."></textarea>
                                 <div id="statusMessages"></div>
                                 <div class="video-container" id="videoContainer" style="display: none;">
                                     <video id="videoPlayer" controls></video>
-                                    <button class="btn btn-secondary btn-block" id="btnDownload">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                            <polyline points="7 10 12 15 17 10"></polyline>
-                                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                                        </svg>
-                                        Baixar Vídeo
-                                    </button>
+                                    <div class="video-actions">
+                                        <button class="btn btn-primary btn-block" id="btnDownload">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            Baixar Vídeo
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- TAB: MULTIPLE SCRIPTS WITH PREVIEW -->
                 <div class="tab-content" id="tab-preview">
                     <div class="content-grid">
                         <div class="form-section">
@@ -255,8 +259,36 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                                         </select>
                                     </div>
                                 </div>
+
+                                <!-- BATCH IMAGE MODE SELECTOR -->
                                 <div class="form-group">
-                                    <label>Escolher Imagens do Apresentador</label>
+                                    <label>Modo de Seleção de Imagens</label>
+                                    <div class="batch-image-mode-toggle">
+                                        <button type="button" class="batch-mode-btn active" data-mode="fixed" onclick="setBatchImageMode('fixed')">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                                <polyline points="21 15 16 10 5 21"></polyline>
+                                            </svg>
+                                            <span class="mode-label">Imagem Fixa</span>
+                                            <span class="mode-desc">Mesma imagem para todos os batches</span>
+                                        </button>
+                                        <button type="button" class="batch-mode-btn" data-mode="individual" onclick="setBatchImageMode('individual')">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="2" y="2" width="8" height="8" rx="1"></rect>
+                                                <rect x="14" y="2" width="8" height="8" rx="1"></rect>
+                                                <rect x="2" y="14" width="8" height="8" rx="1"></rect>
+                                                <rect x="14" y="14" width="8" height="8" rx="1"></rect>
+                                            </svg>
+                                            <span class="mode-label">Imagem por Batch</span>
+                                            <span class="mode-desc">Imagem diferente para cada batch</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- FIXED IMAGE SELECTOR (default) -->
+                                <div id="fixedImageSection" class="form-group">
+                                    <label>Escolher Imagem do Apresentador (Fixa)</label>
                                     <div class="image-source-toggle">
                                         <button type="button" class="toggle-btn active" data-source="avatars" onclick="toggleImageSource('multi', 'avatars')">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -274,12 +306,12 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                                             Upload Novo
                                         </button>
                                     </div>
-                                    
+
                                     <!-- Avatar Selector Grid -->
                                     <div id="multiAvatarSelector" class="avatar-selector-grid">
                                         <p class="loading-text">Carregando avatares...</p>
                                     </div>
-                                    
+
                                     <!-- Upload Area (initially hidden) -->
                                     <div id="multiUploadSection" style="display: none;">
                                         <div class="upload-area" id="multiUploadArea">
@@ -295,6 +327,7 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                                         <div id="multiImagePreview" class="image-preview-grid"></div>
                                     </div>
                                 </div>
+
                                 <div class="form-group">
                                     <label for="multiWorkers">Vídeos Simultâneos</label>
                                     <div class="slider-container">
@@ -331,12 +364,13 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                     </div>
                 </div>
 
-                <div class="tab-content" id="tab-jobs">
+                <!-- TAB: LOADING / PROCESSING -->
+                <div class="tab-content" id="tab-loading">
                     <div class="full-width-content">
                         <div class="card">
                             <div class="card-header-row">
-                                <h2 class="card-title">Timeline de Processamento</h2>
-                                <button class="btn btn-secondary" id="btnRefreshJobs">
+                                <h2 class="card-title">Videos em Processamento</h2>
+                                <button class="btn btn-secondary" id="btnRefreshLoading" onclick="loadProcessingJobs()">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2">
                                         <polyline points="23 4 23 10 17 10"></polyline>
@@ -345,20 +379,35 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                                     Atualizar
                                 </button>
                             </div>
-                            <div id="jobsTimeline" class="jobs-timeline">
+
+                            <div id="loadingVideosContainer" class="loading-videos-grid">
                                 <div class="empty-state-large">
-                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="1">
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <polyline points="12 6 12 12 16 14"></polyline>
+                                    <div class="loading-animation">
+                                        <div class="loading-spinner"></div>
+                                    </div>
+                                    <p>Nenhum vídeo em processamento</p>
+                                    <p class="hint">Os vídeos que você gerar aparecerão aqui</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Completed Videos Section -->
+                        <div class="card" style="margin-top: 1.5rem;">
+                            <h2 class="card-title">Videos Concluídos</h2>
+                            <div id="completedVideosContainer" class="completed-videos-grid">
+                                <div class="empty-state-large">
+                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                        <path d="M23 7l-7 5 7 5V7z"></path>
+                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                                     </svg>
-                                    <p>Nenhum job em processamento</p>
+                                    <p>Nenhum vídeo concluído</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- TAB: AVATARS -->
                 <div class="tab-content" id="tab-avatars">
                     <div class="full-width-content">
                         <div class="card">
@@ -374,7 +423,39 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                                     Upload Avatar
                                 </button>
                             </div>
-                            <div id="avatarsGallery" class="avatars-gallery">
+
+                            <!-- Upload Avatar Box -->
+                            <div id="avatarUploadBox" class="avatar-upload-box" style="display: none;">
+                                <div class="avatar-upload-preview">
+                                    <div class="avatar-upload-placeholder" id="avatarPreviewPlaceholder">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="12" cy="7" r="4"></circle>
+                                        </svg>
+                                        <p>Clique para selecionar</p>
+                                    </div>
+                                    <img id="avatarPreviewImage" class="avatar-preview-img" style="display: none;">
+                                </div>
+                                <div class="avatar-upload-form">
+                                    <div class="form-group">
+                                        <label for="avatarName">Nome do Avatar</label>
+                                        <input type="text" id="avatarName" class="input" placeholder="Ex: Apresentador Principal">
+                                    </div>
+                                    <div class="avatar-upload-actions">
+                                        <button class="btn btn-secondary" onclick="cancelAvatarUpload()">Cancelar</button>
+                                        <button class="btn btn-primary" id="btnSaveAvatar" onclick="saveAvatar()">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                                <polyline points="7 3 7 8 15 8"></polyline>
+                                            </svg>
+                                            Salvar Avatar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="avatarsGallery" class="avatars-gallery-grid">
                                 <div class="empty-state-large">
                                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="1">
@@ -389,6 +470,7 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                     </div>
                 </div>
 
+                <!-- TAB: PROJECTS -->
                 <div class="tab-content" id="tab-projects">
                     <div class="full-width-content">
                         <div class="card">
@@ -431,6 +513,7 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                     </div>
                 </div>
 
+                <!-- TAB: HISTORY -->
                 <div class="tab-content" id="tab-history">
                     <div class="full-width-content">
                         <div class="card">
@@ -463,6 +546,7 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
         </div>
     </main>
 
+    <!-- SETTINGS MODAL -->
     <div class="modal" id="settingsModal">
         <div class="modal-overlay" id="modalOverlay"></div>
         <div class="modal-content">
