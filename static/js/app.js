@@ -926,6 +926,7 @@ async function generateBatchVideos() {
 
     // Get image paths based on mode
     let imagePaths = [];
+    let batchImagesMap = {}; // Mapa de scriptId_batchNumber -> image_path
 
     if (state.batchImageMode === 'fixed') {
         if (state.selectedAvatarPath) {
@@ -934,14 +935,35 @@ async function generateBatchVideos() {
             imagePaths = await uploadImages(state.multiImages);
         }
     } else {
-        // Individual mode - collect all selected images
-        const avatarIds = new Set(Object.values(state.batchImages));
-        avatarIds.forEach(id => {
-            const avatar = state.avatars.find(a => a.id === id);
+        // Individual mode - collect images and maintain batch association
+        const uniqueAvatarPaths = new Set();
+
+        // Build the batch images map with image paths
+        for (const [key, avatarId] of Object.entries(state.batchImages)) {
+            const avatar = state.avatars.find(a => a.id === avatarId);
             if (avatar) {
-                imagePaths.push(avatar.image_path);
+                batchImagesMap[key] = avatar.image_path;
+                uniqueAvatarPaths.add(avatar.image_path);
             }
+        }
+
+        // Validate that all batches have images selected
+        let allBatchesHaveImages = true;
+        state.previewData.scripts.forEach(script => {
+            script.batches.forEach(batch => {
+                const key = `${script.id}_${batch.batch_number}`;
+                if (!batchImagesMap[key]) {
+                    allBatchesHaveImages = false;
+                }
+            });
         });
+
+        if (!allBatchesHaveImages) {
+            showMessage('statusMessages', 'Selecione uma imagem para cada batch no modo individual', 'error');
+            return;
+        }
+
+        imagePaths = Array.from(uniqueAvatarPaths);
     }
 
     if (imagePaths.length === 0) {
@@ -978,7 +1000,9 @@ async function generateBatchVideos() {
                 model_id: model,
                 image_paths: imagePaths,
                 max_workers: workers,
-                voice_selections: state.voiceSelections
+                voice_selections: state.voiceSelections,
+                batch_image_mode: state.batchImageMode,
+                batch_images: batchImagesMap
             })
         });
 
