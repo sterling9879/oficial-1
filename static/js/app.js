@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initImageUpload();
     initVoiceSelectors();
     initAvatarUpload();
+    initSidebar();
     loadApiKeyStatus();
     loadAvatars();
     loadProjects();
@@ -64,6 +65,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // Refresh buttons
     document.getElementById('btnUploadAvatar').addEventListener('click', showAvatarUploadBox);
 });
+
+// ============================================================================
+// SIDEBAR
+// ============================================================================
+
+function initSidebar() {
+    const btnToggle = document.getElementById('btnToggleSidebar');
+    const sidebar = document.getElementById('sidebar');
+
+    if (btnToggle && sidebar) {
+        // Restore sidebar state from localStorage
+        const isMinimized = localStorage.getItem('sidebarMinimized') === 'true';
+        if (isMinimized) {
+            sidebar.classList.add('minimized');
+        }
+
+        btnToggle.addEventListener('click', toggleSidebar);
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const btnToggle = document.getElementById('btnToggleSidebar');
+
+    if (sidebar) {
+        sidebar.classList.toggle('minimized');
+        const isMinimized = sidebar.classList.contains('minimized');
+
+        // Save state to localStorage
+        localStorage.setItem('sidebarMinimized', isMinimized);
+
+        // Update button title
+        if (btnToggle) {
+            btnToggle.title = isMinimized ? 'Expandir' : 'Minimizar';
+        }
+    }
+}
 
 // ============================================================================
 // TABS NAVIGATION
@@ -1127,10 +1165,14 @@ function addToCompletedVideos(video) {
         emptyState.remove();
     }
 
+    // Escape path for safe use in HTML attributes
+    const escapedPath = video.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const encodedPath = encodeURIComponent(video.path);
+
     const itemHtml = `
-        <div class="completed-video-card">
-            <div class="completed-video-thumbnail">
-                <video src="/api/download/${encodeURIComponent(video.path)}"></video>
+        <div class="completed-video-card" data-video-path="${encodedPath}">
+            <div class="completed-video-thumbnail" onclick="playVideo('${escapedPath}')" style="cursor: pointer;">
+                <video src="/api/stream/${encodedPath}" preload="metadata"></video>
                 <div class="completed-video-play-overlay">
                     <div class="completed-video-play-btn">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -1144,7 +1186,10 @@ function addToCompletedVideos(video) {
                 <div class="completed-video-meta">Concluído agora</div>
             </div>
             <div class="completed-video-actions">
-                <button class="btn btn-primary" onclick="downloadVideoByPath('${video.path}')">
+                <button class="btn btn-secondary" onclick="playVideo('${escapedPath}')">
+                    Assistir
+                </button>
+                <button class="btn btn-primary" onclick="downloadVideoByPath('${escapedPath}')">
                     Baixar
                 </button>
             </div>
@@ -1181,19 +1226,22 @@ async function loadVideoHistory() {
         const data = await response.json();
 
         if (data.success && data.videos.length > 0) {
-            container.innerHTML = data.videos.map(video => `
+            container.innerHTML = data.videos.map(video => {
+                const escapedPath = video.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const encodedPath = encodeURIComponent(video.path);
+                return `
                 <div class="video-history-item">
-                    <video class="video-history-thumb" src="/api/download/${encodeURIComponent(video.path)}" preload="metadata"></video>
+                    <video class="video-history-thumb" src="/api/stream/${encodedPath}" preload="metadata"></video>
                     <div class="video-history-info">
                         <div class="video-history-name">${video.name}</div>
                         <div class="video-history-meta">${formatFileSize(video.size)} | ${formatDate(video.created_at * 1000)}</div>
                     </div>
                     <div class="video-history-actions">
-                        <button class="btn btn-secondary" onclick="playVideo('${video.path}')">Assistir</button>
-                        <button class="btn btn-primary" onclick="downloadVideoByPath('${video.path}')">Baixar</button>
+                        <button class="btn btn-secondary" onclick="playVideo('${escapedPath}')">Assistir</button>
+                        <button class="btn btn-primary" onclick="downloadVideoByPath('${escapedPath}')">Baixar</button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         } else {
             container.innerHTML = `
                 <div class="empty-state-large" style="grid-column: 1/-1;">
@@ -1214,8 +1262,8 @@ async function loadVideoHistory() {
 }
 
 function playVideo(videoPath) {
-    // Open video in new tab or modal
-    window.open(`/api/download/${encodeURIComponent(videoPath)}`, '_blank');
+    // Open video in new tab using stream endpoint
+    window.open(`/api/stream/${encodeURIComponent(videoPath)}`, '_blank');
 }
 
 // ============================================================================
@@ -1229,7 +1277,7 @@ function downloadVideo() {
 }
 
 function downloadVideoByPath(videoPath) {
-    // Create a proper download link
+    // Create a proper download link using download endpoint
     const link = document.createElement('a');
     const downloadUrl = `/api/download/${encodeURIComponent(videoPath)}`;
 
@@ -1419,6 +1467,7 @@ window.updateVoiceSelection = updateVoiceSelection;
 window.generateBatchVideos = generateBatchVideos;
 window.selectBatchImage = selectBatchImage;
 window.downloadVideoByPath = downloadVideoByPath;
+window.toggleSidebar = toggleSidebar;
 window.playVideo = playVideo;
 window.loadVideoHistory = loadVideoHistory;
 window.loadProcessingJobs = loadProcessingJobs;

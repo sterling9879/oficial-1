@@ -338,46 +338,72 @@ class AudioGenerator:
                 ...
             ]
         """
+        import time
+
         logger.info(f"Iniciando geração de {len(texts)} áudios")
 
         # Cria diretório de áudios
         audio_dir = output_dir / 'audios'
         audio_dir.mkdir(parents=True, exist_ok=True)
 
-        # Determina número de workers
+        # Determina número de workers baseado no provider
         if max_workers is None:
-            max_workers = min(Config.MAX_CONCURRENT_REQUESTS, len(texts))
+            if self.provider == 'elevenlabs':
+                # ElevenLabs tem limite de 5 requisições simultâneas, usamos 3 para segurança
+                max_workers = min(Config.ELEVENLABS_MAX_CONCURRENT, len(texts))
+            else:
+                max_workers = min(Config.MAX_CONCURRENT_REQUESTS, len(texts))
+
+        logger.info(f"Usando {max_workers} workers paralelos para {self.provider}")
 
         results = []
 
-        def generate_single_audio(text_data: Dict) -> Dict:
-            """Gera um único áudio"""
+        def generate_single_audio_with_retry(text_data: Dict, max_retries: int = 3) -> Dict:
+            """Gera um único áudio com retry para erros 429"""
             audio_number = text_data['batch_number']
             text = text_data['formatted_text']
-
             audio_path = audio_dir / f'audio_{audio_number}.mp3'
 
             if progress_callback:
                 progress_callback(f"Gerando áudio {audio_number}/{len(texts)}...")
 
-            generated_path = self.generate_audio(
-                text=text,
-                voice_id=voice_id,
-                output_path=audio_path,
-                model_id=model_id
-            )
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    generated_path = self.generate_audio(
+                        text=text,
+                        voice_id=voice_id,
+                        output_path=audio_path,
+                        model_id=model_id
+                    )
 
-            return {
-                'audio_number': audio_number,
-                'text': text,
-                'audio_path': generated_path,
-                'duration': None  # Pode ser calculado se necessário
-            }
+                    return {
+                        'audio_number': audio_number,
+                        'text': text,
+                        'audio_path': generated_path,
+                        'duration': None
+                    }
 
-        # Processa em paralelo
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e).lower()
+
+                    # Se for erro 429 (rate limit), espera e tenta novamente
+                    if '429' in error_str or 'too_many' in error_str or 'rate' in error_str:
+                        wait_time = (attempt + 1) * 5  # 5s, 10s, 15s
+                        logger.warning(f"Rate limit atingido para áudio {audio_number}. Aguardando {wait_time}s antes de retry {attempt + 1}/{max_retries}")
+                        time.sleep(wait_time)
+                    else:
+                        # Para outros erros, não faz retry
+                        break
+
+            # Se chegou aqui, todas as tentativas falharam
+            raise last_error
+
+        # Processa em paralelo com controle de concorrência
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
-                executor.submit(generate_single_audio, text_data): text_data
+                executor.submit(generate_single_audio_with_retry, text_data): text_data
                 for text_data in texts
             }
 

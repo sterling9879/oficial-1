@@ -1681,19 +1681,60 @@ label {
     overflow-y: auto;
     position: sticky;
     top: 92px;
+    transition: width var(--transition-base), padding var(--transition-base);
+}
+
+.sidebar.minimized {
+    width: 60px;
+    padding: var(--spacing-md) var(--spacing-sm);
+    overflow: hidden;
+}
+
+.sidebar.minimized .sidebar-header h3,
+.sidebar.minimized .sidebar-tags,
+.sidebar.minimized .sidebar-projects,
+.sidebar.minimized #btnNewProject {
+    display: none;
+}
+
+.sidebar.minimized .sidebar-header {
+    justify-content: center;
+}
+
+.sidebar.minimized .sidebar-title-row {
+    justify-content: center;
+}
+
+.sidebar.minimized .btn-toggle-sidebar svg {
+    transform: rotate(180deg);
 }
 
 .sidebar-header {
     display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.sidebar-title-row {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-md);
+    width: 100%;
 }
 
 .sidebar-header h3 {
     font-size: 1rem;
     color: var(--text-primary);
     margin: 0;
+}
+
+.btn-toggle-sidebar {
+    transition: transform var(--transition-base);
+}
+
+.btn-toggle-sidebar svg {
+    transition: transform var(--transition-base);
 }
 
 .sidebar-tags {
