@@ -369,78 +369,103 @@ def generate_batch_videos():
     """Gera múltiplos vídeos em lote"""
     try:
         data = request.json
-        
+
         scripts = data.get('scripts', [])
         provider = data.get('provider', 'elevenlabs')
         model_id = data.get('model_id', 'eleven_multilingual_v2')
         image_paths = data.get('image_paths', [])
         max_workers = data.get('max_workers', 3)
         voice_selections = data.get('voice_selections', [])
-        
+        batch_image_mode = data.get('batch_image_mode', 'fixed')
+        batch_images = data.get('batch_images', {})  # {scriptId_batchNumber: image_path}
+
         # Validação
         if not scripts or len(scripts) == 0:
             return jsonify({'success': False, 'error': 'Nenhum roteiro fornecido'}), 400
-        
+
         if not image_paths or len(image_paths) == 0:
             return jsonify({'success': False, 'error': 'Nenhuma imagem fornecida'}), 400
-        
+
         # Cria job manager
         job_mgr = JobManager(audio_provider=provider)
-        
+
         results = []
         videos_gerados = []
-        
+
         # Create database job for batch
         batch_job = db.create_job({
             'type': 'batch_videos',
             'metadata': {'num_scripts': len(scripts)}
         })
         batch_job_id = batch_job['id']
-        
+
         for idx, script_data in enumerate(scripts):
             try:
                 script_text = script_data.get('text', '')
+                script_id = script_data.get('id')
                 voice_name = voice_selections[idx] if idx < len(voice_selections) else voice_selections[0]
-                
+
+                # Determine image paths for this script based on mode
+                if batch_image_mode == 'individual':
+                    # Collect images for each batch in this script
+                    script_image_paths = []
+                    batches = script_data.get('batches', [])
+
+                    for batch in batches:
+                        batch_number = batch.get('batch_number')
+                        batch_key = f"{script_id}_{batch_number}"
+
+                        if batch_key in batch_images:
+                            batch_image_path = batch_images[batch_key]
+                            if batch_image_path not in script_image_paths:
+                                script_image_paths.append(batch_image_path)
+
+                    # If no specific images found, fallback to default image_paths
+                    if not script_image_paths:
+                        script_image_paths = image_paths
+                else:
+                    # Fixed mode - use the same images for all scripts
+                    script_image_paths = image_paths
+
                 # Cria job
                 job, error = job_mgr.create_job(
                     input_text=script_text,
                     voice_name=voice_name,
-                    image_paths=image_paths,
+                    image_paths=script_image_paths,
                     model_id=model_id
                 )
-                
+
                 if error:
                     results.append({
-                        'script_id': script_data.get('id'),
+                        'script_id': script_id,
                         'success': False,
                         'error': error
                     })
                     continue
-                
+
                 # Processa job
                 final_video = job_mgr.process_job(
                     job=job,
                     max_workers_video=max_workers
                 )
-                
+
                 duration = (job.completed_at - job.created_at).total_seconds()
                 videos_gerados.append(str(final_video))
-                
+
                 results.append({
-                    'script_id': script_data.get('id'),
+                    'script_id': script_id,
                     'success': True,
                     'video_path': str(final_video),
                     'duration': duration
                 })
-                
+
             except Exception as e:
                 results.append({
                     'script_id': script_data.get('id'),
                     'success': False,
                     'error': str(e)
                 })
-        
+
         # Update batch job as completed
         if videos_gerados:
             db.update_job(batch_job_id, {
@@ -449,14 +474,14 @@ def generate_batch_videos():
             })
         else:
             db.update_job(batch_job_id, {'status': 'failed'})
-        
+
         return jsonify({
             'success': True,
             'results': results,
             'videos_count': len(videos_gerados),
             'total_scripts': len(scripts)
         })
-        
+
     except Exception as e:
         logger.error(f"Erro ao gerar vídeos em lote: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
