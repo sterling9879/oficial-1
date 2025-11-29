@@ -494,16 +494,36 @@ def generate_batch_videos():
 def download_video(filename):
     """Faz download de vídeo gerado"""
     try:
-        # Sanitiza o path
-        video_path = Path(filename)
-        
+        from urllib.parse import unquote
+        # Decodifica o path que pode vir URL-encoded
+        decoded_filename = unquote(filename)
+        video_path = Path(decoded_filename)
+
         if not video_path.exists():
             return jsonify({'success': False, 'error': 'Vídeo não encontrado'}), 404
-        
-        return send_file(str(video_path), as_attachment=True)
-        
+
+        return send_file(str(video_path), as_attachment=True, download_name=video_path.name)
+
     except Exception as e:
         logger.error(f"Erro ao fazer download: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/stream/<path:filename>', methods=['GET'])
+def stream_video(filename):
+    """Stream de vídeo para visualização no navegador"""
+    try:
+        from urllib.parse import unquote
+        # Decodifica o path que pode vir URL-encoded
+        decoded_filename = unquote(filename)
+        video_path = Path(decoded_filename)
+
+        if not video_path.exists():
+            return jsonify({'success': False, 'error': 'Vídeo não encontrado'}), 404
+
+        return send_file(str(video_path), mimetype='video/mp4')
+
+    except Exception as e:
+        logger.error(f"Erro ao fazer stream: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/videos/history', methods=['GET'])
