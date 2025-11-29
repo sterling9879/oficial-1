@@ -22,6 +22,7 @@ class Config:
 
     # Configurações Gerais
     MAX_CONCURRENT_REQUESTS = int(os.getenv('MAX_CONCURRENT_REQUESTS', 10))
+    ELEVENLABS_MAX_CONCURRENT = int(os.getenv('ELEVENLABS_MAX_CONCURRENT', 3))  # ElevenLabs permite 5, usamos 3 para margem de segurança
     TEMP_FOLDER = Path(os.getenv('TEMP_FOLDER', './temp'))
 
     # Configurações de Processamento
