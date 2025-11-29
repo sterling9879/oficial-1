@@ -82,5 +82,12 @@ class Config:
 
         return True
 
-# Valida configurações ao importar
-Config.validate()
+# Valida configurações ao importar (apenas em modo web)
+# No modo desktop (Eel), a validação é feita sob demanda
+if os.getenv('BYPASS_VALIDATION') != 'true':
+    try:
+        Config.validate()
+    except ValueError as e:
+        import sys
+        print(f"\n⚠️  Configurações incompletas: Execute o aplicativo para configurar as API keys via interface.", file=sys.stderr)
+        # Não bloqueia execução - permite que o app inicie para configuração
