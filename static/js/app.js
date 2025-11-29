@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initImageUpload();
     initVoiceSelectors();
     initAvatarUpload();
+    initSidebar();
     loadApiKeyStatus();
     loadAvatars();
     loadProjects();
@@ -64,6 +65,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // Refresh buttons
     document.getElementById('btnUploadAvatar').addEventListener('click', showAvatarUploadBox);
 });
+
+// ============================================================================
+// SIDEBAR
+// ============================================================================
+
+function initSidebar() {
+    const btnToggle = document.getElementById('btnToggleSidebar');
+    const sidebar = document.getElementById('sidebar');
+
+    if (btnToggle && sidebar) {
+        // Restore sidebar state from localStorage
+        const isMinimized = localStorage.getItem('sidebarMinimized') === 'true';
+        if (isMinimized) {
+            sidebar.classList.add('minimized');
+        }
+
+        btnToggle.addEventListener('click', toggleSidebar);
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const btnToggle = document.getElementById('btnToggleSidebar');
+
+    if (sidebar) {
+        sidebar.classList.toggle('minimized');
+        const isMinimized = sidebar.classList.contains('minimized');
+
+        // Save state to localStorage
+        localStorage.setItem('sidebarMinimized', isMinimized);
+
+        // Update button title
+        if (btnToggle) {
+            btnToggle.title = isMinimized ? 'Expandir' : 'Minimizar';
+        }
+    }
+}
 
 // ============================================================================
 // TABS NAVIGATION
@@ -1429,6 +1467,7 @@ window.updateVoiceSelection = updateVoiceSelection;
 window.generateBatchVideos = generateBatchVideos;
 window.selectBatchImage = selectBatchImage;
 window.downloadVideoByPath = downloadVideoByPath;
+window.toggleSidebar = toggleSidebar;
 window.playVideo = playVideo;
 window.loadVideoHistory = loadVideoHistory;
 window.loadProcessingJobs = loadProcessingJobs;
