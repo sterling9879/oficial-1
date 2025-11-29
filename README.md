@@ -1,476 +1,216 @@
-# 🎬 SaaS de Geração de Vídeos com Lip-Sync
+# LipSync Video Generator
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sterling9879/Automation-Ugc/blob/main/LipSync_Video_Generator.ipynb)
 
-Sistema completo para geração automatizada de vídeos profissionais com sincronização labial (lip-sync) usando inteligência artificial.
+Sistema completo para geracao automatizada de videos profissionais com sincronizacao labial (lip-sync) usando inteligencia artificial.
 
-**🚀 Experimente agora no Google Colab** - Sem instalação, roda no navegador! [Clique aqui →](https://colab.research.google.com/github/sterling9879/Automation-Ugc/blob/main/LipSync_Video_Generator.ipynb)
+## Novidade: Versao Desktop
 
-## 🌟 Visão Geral
-
-Este sistema transforma roteiros de texto em vídeos completos com apresentadores virtuais usando:
-
-- **🤖 Gemini 2.5 Flash Lite**: Formatação e otimização automática de texto
-- **🎙️ ElevenLabs**: Síntese de voz de alta qualidade em múltiplos idiomas
-- **🎬 WaveSpeed Wan 2.2**: Geração de vídeo com lip-sync realista
-- **🎞️ FFmpeg**: Concatenação e edição de vídeos
-- **🖥️ Gradio**: Interface web intuitiva e moderna
-
-## 🎯 Funcionalidades
-
-✅ **Processamento Automático de Texto**
-- Divisão inteligente em batches
-- Formatação otimizada para narração
-- Suporte a textos longos (até 100.000 caracteres)
-
-✅ **Síntese de Voz Natural**
-- Mais de 70 idiomas suportados
-- Vozes customizáveis e realistas
-- Processamento em paralelo para otimização
-
-✅ **Geração de Vídeo com Lip-Sync**
-- Sincronização labial precisa
-- Múltiplas imagens do apresentador
-- Variação automática entre ângulos
-
-✅ **Pipeline Completo**
-- Processamento de ponta a ponta
-- Sistema de progresso em tempo real
-- Tratamento robusto de erros com retry
-- Logs detalhados de cada etapa
-
-✅ **Interface Intuitiva**
-- Interface web responsiva
-- Preview em tempo real
-- Estimativa de custo e tempo
-- Download fácil do vídeo final
-
-## 🚀 Formas de Uso
-
-Escolha a opção que melhor se adapta às suas necessidades:
-
-### 1️⃣ **Google Colab** ⭐ Recomendado para Testes
-- ✅ **Zero instalação** - Roda no navegador
-- ✅ **Pronto em 2-3 minutos**
-- ✅ **Gratuito** - Usa tier free do Google
-- ✅ **Link público** - Compartilhe com outros
-
-**[📓 Abrir no Colab →](https://colab.research.google.com/github/sterling9879/Automation-Ugc/blob/main/LipSync_Video_Generator.ipynb)** | **[📖 Guia Colab](COLAB_GUIDE.md)**
-
-### 2️⃣ **Versão Web (Gradio)** - Para Desenvolvimento
-- Interface web local
-- Ideal para uso pessoal
-- Fácil atualização via git
-- Acesso remoto opcional
-
-**[📖 Guia de Instalação](QUICKSTART.md)**
-
-### 3️⃣ **Versão GUI Desktop** - Para Distribuição
-- Aplicação Windows nativa (PyQt5)
-- Interface profissional sem console
-- Ideal para usuário final
-- Build para .exe standalone
-
-**[📖 Guia GUI](GUI_APP_GUIDE.md)** | **[📖 Como Buildar](BUILD_GUIDE.md)**
-
-**Comparação completa:** [VERSOES.md](VERSOES.md)
-
----
-
-## 📋 Pré-requisitos
-
-### Ferramentas Necessárias
-
-- **Python 3.8+**
-- **FFmpeg** (para processamento de vídeo)
-- **Git** (para versionamento)
-
-### Chaves de API
-
-Você precisará criar contas e obter chaves de API para:
-
-1. **ElevenLabs** - https://elevenlabs.io
-2. **Google Gemini** - https://ai.google.dev
-3. **WaveSpeed** - https://wavespeed.ai
-
-## 🚀 Instalação
-
-### 1. Clone o Repositório
+Agora com **aplicativo desktop nativo** usando Eel - execute sem navegador, sem localhost visivel!
 
 ```bash
-git clone <repository-url>
-cd Automation-Ugc
+python app_main.py
 ```
 
-### 2. Instale o FFmpeg
+## Visao Geral
 
-**Ubuntu/Debian:**
+Este sistema transforma roteiros de texto em videos completos com apresentadores virtuais usando:
+
+- **Gemini 2.5 Flash Lite**: Formatacao e otimizacao automatica de texto
+- **ElevenLabs/MiniMax**: Sintese de voz de alta qualidade em multiplos idiomas
+- **WaveSpeed Wan 2.2**: Geracao de video com lip-sync realista
+- **FFmpeg**: Concatenacao e edicao de videos
+- **Eel**: Interface desktop nativa (novo!)
+
+## Funcionalidades
+
+- **Geracao de Video Unico**: Converta um roteiro em video com apresentador virtual
+- **Multiplos Roteiros**: Processe varios roteiros de uma vez com preview
+- **Gestao de Avatares**: Salve e reutilize imagens de apresentadores
+- **Projetos**: Organize seus videos em projetos com tags
+- **Historico**: Acesse facilmente todos os videos gerados
+- **Interface Desktop**: Aplicativo nativo sem necessidade de navegador
+
+## Formas de Uso
+
+### 1. Aplicativo Desktop (Recomendado)
+
+Janela nativa, sem console, sem localhost visivel.
+
 ```bash
-sudo apt-get update
-sudo apt-get install ffmpeg
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Executar desktop
+python app_main.py
 ```
 
-**macOS:**
+### 2. Google Colab
+
+Zero instalacao, roda no navegador.
+
+**[Abrir no Colab](https://colab.research.google.com/github/sterling9879/Automation-Ugc/blob/main/LipSync_Video_Generator.ipynb)**
+
+### 3. Servidor Web (Flask/Gradio)
+
+Para desenvolvimento ou servidor compartilhado.
+
 ```bash
-brew install ffmpeg
+python web_server.py
 ```
 
-**Windows:**
-- Baixe de https://ffmpeg.org/download.html
-- Adicione ao PATH do sistema
+## Pre-requisitos
 
-### 3. Crie um Ambiente Virtual
+### Software Necessario
+
+1. **Python 3.9+** - https://python.org/downloads
+2. **FFmpeg** - Para processamento de video
+   - Windows: https://ffmpeg.org/download.html
+   - macOS: `brew install ffmpeg`
+   - Ubuntu: `sudo apt-get install ffmpeg`
+3. **Google Chrome ou Microsoft Edge** - Para interface desktop
+
+### API Keys Necessarias
+
+| Servico | Funcao | Obter em |
+|---------|--------|----------|
+| Gemini AI | Formatacao de texto | https://makersuite.google.com/app/apikey |
+| ElevenLabs | Sintese de voz | https://elevenlabs.io/api |
+| WaveSpeed | Geracao de video | https://wavespeed.ai |
+| MiniMax (opcional) | Sintese de voz alternativa | https://api.minimax.chat |
+
+## Instalacao Rapida
 
 ```bash
+# Clone o repositorio
+git clone https://github.com/sterling9879/oficial-1.git
+cd oficial-1
+
+# Crie ambiente virtual
 python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# ou: venv\Scripts\activate  # Windows
 
-# Linux/macOS
-source venv/bin/activate
-
-# Windows
-venv\Scripts\activate
-```
-
-### 4. Instale as Dependências
-
-```bash
+# Instale dependencias
 pip install -r requirements.txt
-```
 
-### 5. Configure as Variáveis de Ambiente
-
-Copie o arquivo de exemplo e configure suas chaves de API:
-
-```bash
+# Configure API keys (via interface ou .env)
 cp .env.example .env
+# Edite .env com suas chaves
+
+# Execute
+python app_main.py
 ```
 
-Edite o arquivo `.env` e adicione suas chaves:
+## Gerar Executavel (.exe)
+
+```bash
+# Windows
+build.bat
+
+# Linux/Mac
+./build.sh
+```
+
+Executavel gerado em: `dist/LipSyncVideoGenerator.exe`
+
+## Configuracao
+
+### Via Interface
+
+1. Abra o aplicativo
+2. Clique em "Configurar API Keys" no canto superior direito
+3. Insira suas chaves de API
+4. Salve
+
+### Via Arquivo .env
 
 ```env
-ELEVENLABS_API_KEY=sk_your_elevenlabs_key_here
-GEMINI_API_KEY=AIzaSy_your_gemini_key_here
-WAVESPEED_API_KEY=your_wavespeed_key_here
+# Obrigatorios
+GEMINI_API_KEY=sua_chave_gemini
+ELEVENLABS_API_KEY=sua_chave_elevenlabs
+WAVESPEED_API_KEY=sua_chave_wavespeed
 
-MAX_CONCURRENT_REQUESTS=10
-TEMP_FOLDER=./temp
+# Opcional
+MINIMAX_API_KEY=sua_chave_minimax
+AUDIO_PROVIDER=elevenlabs
 BATCH_SIZE=3
+MAX_CONCURRENT_REQUESTS=10
+DEFAULT_RESOLUTION=480p
 ```
 
-## 🎮 Como Usar
-
-### Iniciar a Aplicação
-
-```bash
-python app.py
-```
-
-A interface web será aberta em: **http://localhost:7860**
-
-### Passo a Passo
-
-1. **Digite o Roteiro**
-   - Cole ou digite seu texto no campo de roteiro
-   - O texto será automaticamente dividido em parágrafos
-
-2. **Selecione a Voz**
-   - Escolha uma voz disponível do ElevenLabs
-   - As vozes suportam mais de 70 idiomas
-
-3. **Upload das Imagens**
-   - Faça upload de 1-20 imagens do apresentador
-   - Use diferentes ângulos para variedade
-   - Formatos aceitos: PNG, JPG, JPEG
-
-4. **Estimativa (Opcional)**
-   - Clique em "Estimar Custo e Tempo"
-   - Veja previsão de tempo e custos de API
-
-5. **Gerar Vídeo**
-   - Clique em "Gerar Vídeo"
-   - Acompanhe o progresso em tempo real
-   - Faça download do vídeo final quando concluído
-
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
-Automation-Ugc/
-├── app.py                  # Interface Gradio principal
-├── config.py               # Configurações do sistema
-├── utils.py                # Funções utilitárias
-├── text_processor.py       # Processamento com Gemini
-├── audio_generator.py      # Geração de áudio (ElevenLabs)
-├── video_generator.py      # Geração de vídeo (WaveSpeed)
-├── video_concatenator.py   # Concatenação (FFmpeg)
-├── job_manager.py          # Gerenciamento de jobs
-├── requirements.txt        # Dependências Python
-├── .env.example            # Template de configuração
-├── .env                    # Configurações (criar manualmente)
-└── README.md              # Esta documentação
-
-temp/                       # Arquivos temporários (criado automaticamente)
-├── job_{uuid}/
-│   ├── formatted_text/
-│   │   ├── batch_1.txt
-│   │   ├── batch_2.txt
-│   │   └── ...
-│   ├── audios/
-│   │   ├── audio_1.mp3
-│   │   ├── audio_2.mp3
-│   │   └── ...
-│   ├── videos/
-│   │   ├── video_1.mp4
-│   │   ├── video_2.mp4
-│   │   └── ...
-│   ├── images/
-│   │   └── (cópias das imagens enviadas)
-│   ├── final_output.mp4
-│   └── state.json          # Estado do job
+oficial-1/
+├── app_main.py           # Aplicativo desktop (Eel)
+├── web_server.py         # Servidor web Flask
+├── config.py             # Configuracoes
+├── job_manager.py        # Orquestrador de jobs
+├── text_processor.py     # Processamento com Gemini
+├── audio_generator.py    # Geracao de audio
+├── video_generator.py    # Geracao de video
+├── video_concatenator.py # Concatenacao FFmpeg
+├── database.py           # Armazenamento JSON
+├── utils.py              # Funcoes auxiliares
+├── static/               # Frontend
+│   ├── index.html
+│   ├── css/
+│   └── js/
+│       ├── app.js        # Web version
+│       └── app_eel.js    # Desktop version
+├── build.spec            # PyInstaller config
+├── build.bat             # Build Windows
+├── build.sh              # Build Linux/Mac
+├── requirements.txt      # Dependencias
+└── .env.example          # Template config
 ```
 
-## 🔧 Módulos do Sistema
+## Fluxo de Processamento
 
-### `text_processor.py`
-- Divide texto em parágrafos
-- Agrupa em batches configuráveis
-- Envia para Gemini para formatação
-- Salva textos formatados
-
-### `audio_generator.py`
-- Lista vozes disponíveis do ElevenLabs
-- Gera áudios em paralelo
-- Suporta múltiplos idiomas e vozes
-- Retry automático em caso de falha
-
-### `video_generator.py`
-- Upload de arquivos para serviço temporário (0x0.st)
-- Submete tarefas para WaveSpeed Wan 2.2
-- Polling de resultados com timeout
-- Download de vídeos gerados
-
-### `video_concatenator.py`
-- Concatena múltiplos vídeos
-- Suporte a transições (opcional)
-- Usa FFmpeg para processamento
-- Otimizado para performance
-
-### `job_manager.py`
-- Orquestra todo o pipeline
-- Gerencia estado dos jobs
-- Sistema de progresso em tempo real
-- Tratamento de erros e retry
-
-## ⚙️ Configurações Avançadas
-
-### Ajustar Batch Size
-
-No arquivo `.env`, ajuste o tamanho dos batches:
-
-```env
-BATCH_SIZE=3  # Número de parágrafos por batch
+```
+1. Texto de entrada
+       |
+2. Gemini AI formata texto
+       |
+3. ElevenLabs/MiniMax gera audio
+       |
+4. WaveSpeed gera video lip-sync
+       |
+5. FFmpeg concatena videos
+       |
+6. Video MP4 pronto!
 ```
 
-### Limites de Processamento Paralelo
+## Custos Estimados
 
-```env
-MAX_CONCURRENT_REQUESTS=10  # Número máximo de requisições simultâneas
-```
+| Servico | Custo Aproximado |
+|---------|------------------|
+| Gemini AI | ~$0.10 / 1M caracteres |
+| ElevenLabs | ~$0.30 / 1K caracteres |
+| WaveSpeed | ~$0.20 / video |
 
-### Timeouts
+**Video tipico de 2 minutos**: ~$0.35 - $0.50
 
-```env
-POLL_INTERVAL=5    # Intervalo entre polls (segundos)
-POLL_TIMEOUT=600   # Timeout total (segundos)
-```
+## Troubleshooting
 
-### Qualidade de Vídeo
+### "FFmpeg nao encontrado"
+Instale FFmpeg e adicione ao PATH do sistema.
 
-```env
-DEFAULT_RESOLUTION=480p  # Opções: 480p, 720p, 1080p
-VIDEO_QUALITY=high       # Opções: low, medium, high
-```
+### "Nenhuma voz disponivel"
+Verifique sua API key do ElevenLabs/MiniMax.
 
-## 🎨 Personalizar Prompt do Gemini
+### Aplicativo nao abre janela
+Instale Google Chrome ou Microsoft Edge.
 
-O prompt usado para formatação de texto está em `text_processor.py`, método `_get_formatting_prompt()`.
+### Build falha
+Execute de um ambiente virtual ativado com todas as dependencias.
 
-Para personalizar:
+## Suporte
 
-1. Abra `text_processor.py`
-2. Localize o método `_get_formatting_prompt()`
-3. Edite o prompt conforme suas necessidades
-4. Salve e reinicie a aplicação
-
-**Exemplo de customização:**
-
-```python
-def _get_formatting_prompt(self, batch_text: str, batch_number: int) -> str:
-    return f"""Você é um roteirista especializado em vídeos para YouTube.
-
-Formate o seguinte texto para ser narrado de forma energética e envolvente:
-
-{batch_text}
-
-Requisitos:
-- Tom casual e amigável
-- Frases curtas e impactantes
-- Use emojis quando apropriado
-- Adicione calls-to-action
-
-TEXTO FORMATADO:"""
-```
-
-## 💰 Estimativa de Custos
-
-Os custos variam conforme uso das APIs:
-
-| API | Custo Aproximado |
-|-----|------------------|
-| **Gemini 2.5 Flash Lite** | $0.10 / 1M caracteres entrada |
-| **ElevenLabs** | $0.30 / 1K caracteres |
-| **WaveSpeed Wan 2.2** | $0.20 / vídeo |
-
-**Exemplo para vídeo de 1000 palavras (~6000 caracteres):**
-- Gemini: ~$0.001
-- ElevenLabs: ~$1.80
-- WaveSpeed (3 vídeos): ~$0.60
-- **Total: ~$2.40**
-
-## 🐛 Troubleshooting
-
-### Erro: "FFmpeg não encontrado"
-
-**Solução:** Instale o FFmpeg conforme instruções em "Instalação"
-
-### Erro: "API key inválida"
-
-**Solução:** Verifique se as chaves em `.env` estão corretas e ativas
-
-### Erro: "Rate limit atingido"
-
-**Solução:**
-- Aguarde alguns minutos
-- Reduza `MAX_CONCURRENT_REQUESTS` em `.env`
-- Considere upgrade do tier da API
-
-### Vídeos não estão sendo gerados
-
-**Solução:**
-- Verifique conexão com internet
-- Confirme que as imagens estão em formato válido (PNG/JPG)
-- Verifique logs em `temp/job_{uuid}/state.json`
-
-### Erro ao fazer upload de arquivos
-
-**Solução:**
-- O sistema usa 0x0.st para upload temporário
-- Se houver problemas, considere implementar upload para S3
-- Veja instruções em `video_generator.py`
-
-## 📊 Logs e Monitoramento
-
-Logs são salvos automaticamente e mostrados no console:
-
-```bash
-2025-11-16 10:30:00 - JobManager - INFO - Job criado: abc-123-def
-2025-11-16 10:30:05 - TextProcessor - INFO - Formatando batch #1...
-2025-11-16 10:30:10 - AudioGenerator - INFO - Gerando áudio 1/3...
-```
-
-Estado de cada job é salvo em:
-```
-temp/job_{uuid}/state.json
-```
-
-## 🔒 Segurança
-
-⚠️ **IMPORTANTE:**
-
-- Nunca commit o arquivo `.env` no Git
-- Mantenha suas API keys em segredo
-- Use variáveis de ambiente em produção
-- Limite acesso à interface Gradio se expor publicamente
-
-## 🚀 Deploy em Produção
-
-### Opção 1: Docker (Recomendado)
-
-```dockerfile
-FROM python:3.10-slim
-
-RUN apt-get update && apt-get install -y ffmpeg
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-EXPOSE 7860
-
-CMD ["python", "app.py"]
-```
-
-```bash
-docker build -t lipsync-saas .
-docker run -p 7860:7860 --env-file .env lipsync-saas
-```
-
-### Opção 2: Servidor Linux
-
-```bash
-# Instale dependências
-sudo apt-get install python3-pip ffmpeg
-
-# Configure o ambiente
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Use PM2 ou systemd para manter rodando
-pm2 start app.py --name lipsync-saas
-```
-
-## 📈 Performance
-
-**Tempos Médios:**
-- Formatação de texto: ~3s por batch
-- Geração de áudio: ~5s por áudio
-- Geração de vídeo (lip-sync): ~2min por vídeo
-- Concatenação: ~10s
-
-**Para vídeo de 3 batches (3 vídeos):**
-- Tempo total: ~8-10 minutos
-- Pode variar conforme carga das APIs
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Para contribuir:
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📝 Licença
-
-Este projeto é fornecido "como está" para fins educacionais e de desenvolvimento.
-
-## 🙏 Agradecimentos
-
-- **ElevenLabs** - Síntese de voz de alta qualidade
-- **Google Gemini** - Processamento de linguagem natural
-- **WaveSpeed** - Geração de vídeo com IA
-- **Gradio** - Framework de interface web
-
-## 📞 Suporte
-
-Para questões e suporte:
-- Abra uma issue no GitHub
-- Consulte a documentação das APIs
-- Verifique os logs do sistema
+Para bugs e sugestoes:
+https://github.com/sterling9879/oficial-1/issues
 
 ---
 
-**Desenvolvido com ❤️ usando Python, IA e muita automação!**
+**LipSync Video Generator** - Transforme texto em videos com apresentador virtual usando IA

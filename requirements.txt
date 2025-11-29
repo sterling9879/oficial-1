@@ -1,8 +1,27 @@
+# LipSync Video Generator - Desktop Application
+# Requirements
+
+# Web Server (compatibilidade)
 gradio==4.44.1
-google-generativeai==0.8.3
-python-dotenv==1.2.1
-requests==2.32.3
-Pillow==10.4.0
 Flask==3.0.0
 Flask-CORS==4.0.0
 Werkzeug==3.0.1
+
+# Desktop Application (Eel)
+eel==0.16.0
+bottle==0.12.25
+bottle-websocket==0.2.9
+gevent==24.2.1
+gevent-websocket==0.10.1
+
+# AI & API Clients
+google-generativeai==0.8.3
+elevenlabs==1.50.5
+
+# Core Utilities
+python-dotenv==1.2.1
+requests==2.32.3
+Pillow==10.4.0
+
+# Build Tools (for creating .exe)
+pyinstaller==6.11.1

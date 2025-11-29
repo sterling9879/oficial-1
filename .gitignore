@@ -44,3 +44,22 @@ temp/
 # OS
 .DS_Store
 Thumbs.db
+
+# PyInstaller
+*.manifest
+*.spec.bak
+
+# Data and outputs
+data/avatars/
+data/*.json
+!data/.gitkeep
+
+# Desktop app specific
+icon.ico
+icon.icns
+version_info.txt
+
+# Credentials (nunca commitar!)
+credentials.json
+*.pem
+*.key
