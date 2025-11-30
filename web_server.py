@@ -752,21 +752,230 @@ def delete_avatar(avatar_id):
 
 @app.route('/api/avatars/<avatar_id>/image', methods=['GET'])
 def get_avatar_image(avatar_id):
-    """Obtém imagem do avatar"""
+    """Obtém imagem do avatar (primeira imagem)"""
     try:
         avatar = db.get_avatar(avatar_id)
-        
+
         if not avatar:
             return jsonify({'success': False, 'error': 'Avatar não encontrado'}), 404
-        
-        image_path = Path(avatar['image_path'])
-        
+
+        # Use first image from images array or legacy image_path
+        if avatar.get('images') and len(avatar['images']) > 0:
+            image_path = Path(avatar['images'][0]['path'])
+        else:
+            image_path = Path(avatar['image_path'])
+
         if not image_path.exists():
             return jsonify({'success': False, 'error': 'Imagem não encontrada'}), 404
-        
+
         return send_file(str(image_path))
     except Exception as e:
         logger.error(f"Erro ao obter imagem: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/avatars/<avatar_id>/images', methods=['POST'])
+def add_avatar_image(avatar_id):
+    """Adiciona uma imagem a um avatar existente"""
+    try:
+        from datetime import datetime
+
+        avatar = db.get_avatar(avatar_id)
+        if not avatar:
+            return jsonify({'success': False, 'error': 'Avatar não encontrado'}), 404
+
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'Nenhuma imagem enviada'}), 400
+
+        file = request.files['image']
+
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Arquivo inválido'}), 400
+
+        # Salva imagem
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f"{timestamp}_{filename}"
+
+        image_path = db.avatars_dir / unique_filename
+        file.save(str(image_path))
+
+        # Cria thumbnail
+        thumbnail_path = db.avatars_dir / "thumbnails" / unique_filename
+        file.seek(0)
+        file.save(str(thumbnail_path))
+
+        # Adiciona ao banco
+        new_image = db.add_image_to_avatar(avatar_id, str(image_path), str(thumbnail_path))
+
+        if new_image:
+            return jsonify({
+                'success': True,
+                'image': new_image
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Erro ao adicionar imagem'}), 500
+    except Exception as e:
+        logger.error(f"Erro ao adicionar imagem ao avatar: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/avatars/<avatar_id>/images/<image_id>', methods=['GET'])
+def get_avatar_specific_image(avatar_id, image_id):
+    """Obtém uma imagem específica do avatar"""
+    try:
+        avatar = db.get_avatar(avatar_id)
+
+        if not avatar:
+            return jsonify({'success': False, 'error': 'Avatar não encontrado'}), 404
+
+        if 'images' not in avatar:
+            return jsonify({'success': False, 'error': 'Avatar sem imagens'}), 404
+
+        # Find specific image
+        for img in avatar['images']:
+            if img['id'] == image_id:
+                image_path = Path(img['path'])
+                if not image_path.exists():
+                    return jsonify({'success': False, 'error': 'Imagem não encontrada'}), 404
+                return send_file(str(image_path))
+
+        return jsonify({'success': False, 'error': 'Imagem não encontrada'}), 404
+    except Exception as e:
+        logger.error(f"Erro ao obter imagem específica: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/avatars/<avatar_id>/images/<image_id>', methods=['DELETE'])
+def delete_avatar_image(avatar_id, image_id):
+    """Deleta uma imagem específica do avatar"""
+    try:
+        avatar = db.get_avatar(avatar_id)
+
+        if not avatar:
+            return jsonify({'success': False, 'error': 'Avatar não encontrado'}), 404
+
+        # Check if it's the last image
+        if avatar.get('images') and len(avatar['images']) <= 1:
+            return jsonify({'success': False, 'error': 'Não é possível deletar a última imagem do avatar'}), 400
+
+        success = db.delete_image_from_avatar(avatar_id, image_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Imagem deletada com sucesso'
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Imagem não encontrada'}), 404
+    except Exception as e:
+        logger.error(f"Erro ao deletar imagem: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/gemini/select-images', methods=['POST'])
+def gemini_select_images():
+    """Usa Gemini para selecionar a melhor imagem para cada batch"""
+    try:
+        import google.generativeai as genai
+        import base64
+
+        data = request.json
+
+        if not data:
+            return jsonify({'success': False, 'error': 'Dados não fornecidos'}), 400
+
+        avatar_id = data.get('avatar_id')
+        batches = data.get('batches', [])  # [{batch_number: 1, text: "..."}, ...]
+
+        if not avatar_id or not batches:
+            return jsonify({'success': False, 'error': 'avatar_id e batches são obrigatórios'}), 400
+
+        avatar = db.get_avatar(avatar_id)
+        if not avatar:
+            return jsonify({'success': False, 'error': 'Avatar não encontrado'}), 404
+
+        images = avatar.get('images', [])
+        if len(images) < 2:
+            # If only one image, use it for all batches
+            single_image_id = images[0]['id'] if images else None
+            return jsonify({
+                'success': True,
+                'selections': {str(b['batch_number']): single_image_id for b in batches}
+            })
+
+        # Configure Gemini
+        genai.configure(api_key=Config.GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-2.0-flash')
+
+        # Prepare image data for Gemini
+        image_parts = []
+        image_descriptions = []
+
+        for idx, img in enumerate(images):
+            img_path = Path(img['path'])
+            if img_path.exists():
+                with open(img_path, 'rb') as f:
+                    img_data = base64.b64encode(f.read()).decode('utf-8')
+                    mime_type = 'image/png' if img_path.suffix.lower() == '.png' else 'image/jpeg'
+                    image_parts.append({
+                        'mime_type': mime_type,
+                        'data': img_data
+                    })
+                    image_descriptions.append(f"Imagem {idx + 1} (ID: {img['id']})")
+
+        # Build prompt for Gemini
+        batch_texts = "\n\n".join([
+            f"BATCH {b['batch_number']}:\n{b['text']}"
+            for b in batches
+        ])
+
+        prompt = f"""Você é um especialista em seleção de imagens para vídeos de lip-sync.
+
+Analise as {len(images)} imagens fornecidas e os textos dos batches abaixo.
+Para cada batch, escolha a imagem que melhor combina com o tom e conteúdo do texto.
+
+IMAGENS DISPONÍVEIS:
+{chr(10).join(image_descriptions)}
+
+TEXTOS DOS BATCHES:
+{batch_texts}
+
+INSTRUÇÕES:
+1. Analise o sentimento e tom de cada batch
+2. Considere qual expressão facial/pose da imagem combina melhor
+3. Retorne APENAS um JSON no formato: {{"1": "img_xxx", "2": "img_yyy", ...}}
+4. As chaves são os números dos batches
+5. Os valores são os IDs das imagens (ex: img_abc123)
+
+RESPOSTA (apenas JSON):"""
+
+        # Call Gemini with images and prompt
+        contents = []
+        for img_part in image_parts:
+            contents.append({
+                'inline_data': img_part
+            })
+        contents.append(prompt)
+
+        response = model.generate_content(contents)
+        response_text = response.text.strip()
+
+        # Parse JSON response
+        import json
+        import re
+
+        # Extract JSON from response
+        json_match = re.search(r'\{[^{}]+\}', response_text)
+        if json_match:
+            selections = json.loads(json_match.group())
+        else:
+            # Fallback: use first image for all
+            selections = {str(b['batch_number']): images[0]['id'] for b in batches}
+
+        return jsonify({
+            'success': True,
+            'selections': selections
+        })
+
+    except Exception as e:
+        logger.error(f"Erro na seleção automática de imagens: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ============================================================================
