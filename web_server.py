@@ -49,8 +49,16 @@ def static_files(path):
 
 @app.route('/api/config/keys', methods=['GET'])
 def get_api_keys_status():
-    """Retorna status de quais API keys estão configuradas (sem valores)"""
+    """Retorna status de quais API keys estão configuradas (com valores mascarados)"""
     try:
+        def mask_key(key):
+            """Mascara a API key mostrando apenas primeiros e últimos caracteres"""
+            if not key:
+                return None
+            if len(key) <= 8:
+                return '*' * len(key)
+            return key[:4] + '*' * (len(key) - 8) + key[-4:]
+
         return jsonify({
             'success': True,
             'keys': {
@@ -58,6 +66,12 @@ def get_api_keys_status():
                 'minimax': bool(Config.MINIMAX_API_KEY),
                 'gemini': bool(Config.GEMINI_API_KEY),
                 'wavespeed': bool(Config.WAVESPEED_API_KEY)
+            },
+            'masked_keys': {
+                'elevenlabs': mask_key(Config.ELEVENLABS_API_KEY),
+                'minimax': mask_key(Config.MINIMAX_API_KEY),
+                'gemini': mask_key(Config.GEMINI_API_KEY),
+                'wavespeed': mask_key(Config.WAVESPEED_API_KEY)
             }
         })
     except Exception as e:
@@ -191,24 +205,28 @@ def generate_preview():
     try:
         data = request.json
         scripts_text = data.get('scripts_text', '')
-        
+        batch_size = data.get('batch_size', Config.BATCH_SIZE)
+
+        # Valida batch_size (entre 1 e 10)
+        batch_size = max(1, min(10, int(batch_size)))
+
         if not scripts_text or not scripts_text.strip():
             return jsonify({'success': False, 'error': 'Texto não fornecido'}), 400
-        
+
         # Separa roteiros por "---"
         raw_scripts = [s.strip() for s in scripts_text.split('---') if s.strip()]
-        
+
         if not raw_scripts:
             return jsonify({'success': False, 'error': 'Nenhum roteiro encontrado'}), 400
-        
+
         scripts_data = []
-        
+
         for idx, script in enumerate(raw_scripts, 1):
             # Divide em parágrafos
             paragraphs = split_into_paragraphs(script)
-            
-            # Cria batches
-            batches = create_batches(paragraphs, Config.BATCH_SIZE)
+
+            # Cria batches usando o tamanho especificado pelo usuário
+            batches = create_batches(paragraphs, batch_size)
             
             # Monta estrutura do roteiro
             script_data = {

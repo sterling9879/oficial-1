@@ -336,6 +336,15 @@ Roteiro 3: E aqui está o terceiro roteiro."></textarea>
                                 </div>
 
                                 <div class="form-group">
+                                    <label for="batchSize">Parágrafos por Batch</label>
+                                    <div class="slider-container">
+                                        <input type="range" id="batchSize" class="slider" min="1" max="10" value="3">
+                                        <span class="slider-value" id="batchSizeValue">3</span>
+                                    </div>
+                                    <p class="form-hint">Quantos parágrafos serão agrupados em cada batch de vídeo</p>
+                                </div>
+
+                                <div class="form-group">
                                     <label for="multiWorkers">Vídeos Simultâneos</label>
                                     <div class="slider-container">
                                         <input type="range" id="multiWorkers" class="slider" min="1" max="10" value="3">

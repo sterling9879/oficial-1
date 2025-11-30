@@ -171,9 +171,28 @@ async function loadApiKeyStatus() {
             updateApiStatus('Minimax', data.keys.minimax);
             updateApiStatus('Gemini', data.keys.gemini);
             updateApiStatus('Wavespeed', data.keys.wavespeed);
+
+            // Preencher os inputs com keys mascaradas como placeholder
+            if (data.masked_keys) {
+                setMaskedKeyPlaceholder('apiKeyElevenlabs', data.masked_keys.elevenlabs);
+                setMaskedKeyPlaceholder('apiKeyMinimax', data.masked_keys.minimax);
+                setMaskedKeyPlaceholder('apiKeyGemini', data.masked_keys.gemini);
+                setMaskedKeyPlaceholder('apiKeyWavespeed', data.masked_keys.wavespeed);
+            }
         }
     } catch (error) {
         console.error('Erro ao verificar API keys:', error);
+    }
+}
+
+function setMaskedKeyPlaceholder(inputId, maskedKey) {
+    const input = document.getElementById(inputId);
+    if (input && maskedKey) {
+        input.placeholder = maskedKey;
+        input.dataset.hasKey = 'true';
+    } else if (input) {
+        input.placeholder = 'Cole sua API key aqui';
+        input.dataset.hasKey = 'false';
     }
 }
 
@@ -225,6 +244,8 @@ function initSliders() {
     const singleValue = document.getElementById('singleWorkersValue');
     const multiSlider = document.getElementById('multiWorkers');
     const multiValue = document.getElementById('multiWorkersValue');
+    const batchSizeSlider = document.getElementById('batchSize');
+    const batchSizeValue = document.getElementById('batchSizeValue');
 
     singleSlider.addEventListener('input', () => {
         singleValue.textContent = singleSlider.value;
@@ -233,6 +254,12 @@ function initSliders() {
     multiSlider.addEventListener('input', () => {
         multiValue.textContent = multiSlider.value;
     });
+
+    if (batchSizeSlider && batchSizeValue) {
+        batchSizeSlider.addEventListener('input', () => {
+            batchSizeValue.textContent = batchSizeSlider.value;
+        });
+    }
 }
 
 // ============================================================================
@@ -800,6 +827,7 @@ async function uploadImages(images) {
 
 async function generatePreview() {
     const text = document.getElementById('multiText').value;
+    const batchSize = parseInt(document.getElementById('batchSize').value) || 3;
 
     if (!text.trim()) {
         showMessage('statusMessages', 'Digite os roteiros', 'error');
@@ -810,7 +838,7 @@ async function generatePreview() {
         const response = await fetch('/api/preview', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scripts_text: text })
+            body: JSON.stringify({ scripts_text: text, batch_size: batchSize })
         });
 
         const data = await response.json();
