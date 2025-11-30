@@ -49,8 +49,16 @@ def static_files(path):
 
 @app.route('/api/config/keys', methods=['GET'])
 def get_api_keys_status():
-    """Retorna status de quais API keys estão configuradas (sem valores)"""
+    """Retorna status de quais API keys estão configuradas (com valores mascarados)"""
     try:
+        def mask_key(key):
+            """Mascara a API key mostrando apenas primeiros e últimos caracteres"""
+            if not key:
+                return None
+            if len(key) <= 8:
+                return '*' * len(key)
+            return key[:4] + '*' * (len(key) - 8) + key[-4:]
+
         return jsonify({
             'success': True,
             'keys': {
@@ -58,6 +66,12 @@ def get_api_keys_status():
                 'minimax': bool(Config.MINIMAX_API_KEY),
                 'gemini': bool(Config.GEMINI_API_KEY),
                 'wavespeed': bool(Config.WAVESPEED_API_KEY)
+            },
+            'masked_keys': {
+                'elevenlabs': mask_key(Config.ELEVENLABS_API_KEY),
+                'minimax': mask_key(Config.MINIMAX_API_KEY),
+                'gemini': mask_key(Config.GEMINI_API_KEY),
+                'wavespeed': mask_key(Config.WAVESPEED_API_KEY)
             }
         })
     except Exception as e:

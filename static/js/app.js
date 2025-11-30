@@ -171,9 +171,28 @@ async function loadApiKeyStatus() {
             updateApiStatus('Minimax', data.keys.minimax);
             updateApiStatus('Gemini', data.keys.gemini);
             updateApiStatus('Wavespeed', data.keys.wavespeed);
+
+            // Preencher os inputs com keys mascaradas como placeholder
+            if (data.masked_keys) {
+                setMaskedKeyPlaceholder('apiKeyElevenlabs', data.masked_keys.elevenlabs);
+                setMaskedKeyPlaceholder('apiKeyMinimax', data.masked_keys.minimax);
+                setMaskedKeyPlaceholder('apiKeyGemini', data.masked_keys.gemini);
+                setMaskedKeyPlaceholder('apiKeyWavespeed', data.masked_keys.wavespeed);
+            }
         }
     } catch (error) {
         console.error('Erro ao verificar API keys:', error);
+    }
+}
+
+function setMaskedKeyPlaceholder(inputId, maskedKey) {
+    const input = document.getElementById(inputId);
+    if (input && maskedKey) {
+        input.placeholder = maskedKey;
+        input.dataset.hasKey = 'true';
+    } else if (input) {
+        input.placeholder = 'Cole sua API key aqui';
+        input.dataset.hasKey = 'false';
     }
 }
 
