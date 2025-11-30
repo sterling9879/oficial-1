@@ -928,8 +928,16 @@ def gemini_select_images():
 
         prompt = f"""Você é um especialista em seleção de imagens para vídeos de lip-sync.
 
-Analise as {len(images)} imagens fornecidas e os textos dos batches abaixo.
-Para cada batch, escolha a imagem que melhor combina com o tom e conteúdo do texto.
+CONTEXTO IMPORTANTE:
+Cada avatar possui dois tipos de imagens:
+1. IMAGEM ESTÁTICA - A pessoa parada, sem segurar nada
+2. IMAGEM COM PRODUTO - A pessoa segurando o produto
+
+REGRA FUNDAMENTAL:
+- Você deve escolher APENAS UMA imagem de cada tipo para usar em TODOS os batches
+- Identifique qual imagem é ESTÁTICA e qual é COM PRODUTO
+- Use a imagem ESTÁTICA para batches de introdução, explicação ou contexto geral
+- Use a imagem COM PRODUTO para batches que mencionam o produto, benefícios ou call-to-action
 
 IMAGENS DISPONÍVEIS:
 {chr(10).join(image_descriptions)}
@@ -938,11 +946,13 @@ TEXTOS DOS BATCHES:
 {batch_texts}
 
 INSTRUÇÕES:
-1. Analise o sentimento e tom de cada batch
-2. Considere qual expressão facial/pose da imagem combina melhor
-3. Retorne APENAS um JSON no formato: {{"1": "img_xxx", "2": "img_yyy", ...}}
-4. As chaves são os números dos batches
-5. Os valores são os IDs das imagens (ex: img_abc123)
+1. Primeiro, identifique qual imagem é ESTÁTICA e qual é COM PRODUTO
+2. Analise cada batch e decida se é momento de mostrar a pessoa parada ou com o produto
+3. Use a MESMA imagem estática para todos os momentos estáticos
+4. Use a MESMA imagem com produto para todos os momentos de produto
+5. Retorne APENAS um JSON no formato: {{"1": "img_xxx", "2": "img_yyy", ...}}
+6. As chaves são os números dos batches
+7. Os valores são os IDs das imagens (ex: img_abc123)
 
 RESPOSTA (apenas JSON):"""
 
