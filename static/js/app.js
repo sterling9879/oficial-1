@@ -225,6 +225,8 @@ function initSliders() {
     const singleValue = document.getElementById('singleWorkersValue');
     const multiSlider = document.getElementById('multiWorkers');
     const multiValue = document.getElementById('multiWorkersValue');
+    const batchSizeSlider = document.getElementById('batchSize');
+    const batchSizeValue = document.getElementById('batchSizeValue');
 
     singleSlider.addEventListener('input', () => {
         singleValue.textContent = singleSlider.value;
@@ -233,6 +235,12 @@ function initSliders() {
     multiSlider.addEventListener('input', () => {
         multiValue.textContent = multiSlider.value;
     });
+
+    if (batchSizeSlider && batchSizeValue) {
+        batchSizeSlider.addEventListener('input', () => {
+            batchSizeValue.textContent = batchSizeSlider.value;
+        });
+    }
 }
 
 // ============================================================================
@@ -800,6 +808,7 @@ async function uploadImages(images) {
 
 async function generatePreview() {
     const text = document.getElementById('multiText').value;
+    const batchSize = parseInt(document.getElementById('batchSize').value) || 3;
 
     if (!text.trim()) {
         showMessage('statusMessages', 'Digite os roteiros', 'error');
@@ -810,7 +819,7 @@ async function generatePreview() {
         const response = await fetch('/api/preview', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scripts_text: text })
+            body: JSON.stringify({ scripts_text: text, batch_size: batchSize })
         });
 
         const data = await response.json();

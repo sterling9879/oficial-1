@@ -191,24 +191,28 @@ def generate_preview():
     try:
         data = request.json
         scripts_text = data.get('scripts_text', '')
-        
+        batch_size = data.get('batch_size', Config.BATCH_SIZE)
+
+        # Valida batch_size (entre 1 e 10)
+        batch_size = max(1, min(10, int(batch_size)))
+
         if not scripts_text or not scripts_text.strip():
             return jsonify({'success': False, 'error': 'Texto não fornecido'}), 400
-        
+
         # Separa roteiros por "---"
         raw_scripts = [s.strip() for s in scripts_text.split('---') if s.strip()]
-        
+
         if not raw_scripts:
             return jsonify({'success': False, 'error': 'Nenhum roteiro encontrado'}), 400
-        
+
         scripts_data = []
-        
+
         for idx, script in enumerate(raw_scripts, 1):
             # Divide em parágrafos
             paragraphs = split_into_paragraphs(script)
-            
-            # Cria batches
-            batches = create_batches(paragraphs, Config.BATCH_SIZE)
+
+            # Cria batches usando o tamanho especificado pelo usuário
+            batches = create_batches(paragraphs, batch_size)
             
             # Monta estrutura do roteiro
             script_data = {
