@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Refresh buttons
     document.getElementById('btnUploadAvatar').addEventListener('click', showAvatarUploadBox);
+    document.getElementById('btnUploadMultipleAvatars').addEventListener('click', triggerBatchAvatarUpload);
+    document.getElementById('avatarBatchUploadInput').addEventListener('change', handleBatchAvatarUpload);
 });
 
 // ============================================================================
@@ -603,6 +605,74 @@ async function saveAvatar() {
         console.error('Erro ao salvar avatar:', error);
         alert('Erro ao salvar avatar');
     }
+}
+
+function triggerBatchAvatarUpload() {
+    document.getElementById('avatarBatchUploadInput').click();
+}
+
+async function handleBatchAvatarUpload(e) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const totalFiles = files.length;
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Show progress message
+    const gallery = document.getElementById('avatarsGallery');
+    gallery.innerHTML = `
+        <div class="empty-state-large">
+            <div class="loading-spinner"></div>
+            <p id="batchUploadProgress">Enviando 0/${totalFiles} avatares...</p>
+        </div>
+    `;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        // Extract name from filename (remove extension)
+        const avatarName = file.name.replace(/\.[^/.]+$/, '');
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('name', avatarName);
+
+        try {
+            const response = await fetch('/api/avatars', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                successCount++;
+            } else {
+                errorCount++;
+                console.error(`Erro ao salvar avatar ${avatarName}:`, data.error);
+            }
+        } catch (error) {
+            errorCount++;
+            console.error(`Erro ao salvar avatar ${avatarName}:`, error);
+        }
+
+        // Update progress
+        document.getElementById('batchUploadProgress').textContent =
+            `Enviando ${i + 1}/${totalFiles} avatares...`;
+    }
+
+    // Reset file input
+    e.target.value = '';
+
+    // Show result message
+    if (errorCount === 0) {
+        alert(`${successCount} avatar(es) enviado(s) com sucesso!`);
+    } else {
+        alert(`Upload concluído: ${successCount} sucesso(s), ${errorCount} erro(s)`);
+    }
+
+    // Reload avatars
+    loadAvatars();
 }
 
 // ============================================================================
