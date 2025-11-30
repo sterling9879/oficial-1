@@ -17,11 +17,20 @@
     <header class="header">
         <div class="container">
             <div class="header-content">
-                <div class="logo">
-                    <div class="logo-icon">🎬</div>
-                    <div class="logo-text">
-                        <h1>ZERO STUDIO</h1>
-                        <p>Geração profissional de vídeos com IA</p>
+                <div class="header-left">
+                    <button class="btn-mobile-menu" id="btnMobileMenu" aria-label="Menu">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="logo">
+                        <div class="logo-icon">🎬</div>
+                        <div class="logo-text">
+                            <h1>ZERO STUDIO</h1>
+                            <p>Geração profissional de vídeos com IA</p>
+                        </div>
                     </div>
                 </div>
                 <button class="btn-settings" id="btnOpenSettings">
@@ -31,7 +40,7 @@
                         <path d="M16.24 7.76l-2.12 2.12m-4.24 4.24l-2.12 2.12m4.24-8.48l2.12 2.12m-6.36 4.24l2.12 2.12">
                         </path>
                     </svg>
-                    Configurar API Keys
+                    <span class="btn-settings-text">Configurar API Keys</span>
                 </button>
             </div>
         </div>
@@ -62,6 +71,8 @@
                 <p class="empty-state">Nenhum projeto ainda</p>
             </div>
         </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
         <div class="content-wrapper">
             <div class="container">

@@ -78,6 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function initSidebar() {
     const btnToggle = document.getElementById('btnToggleSidebar');
     const sidebar = document.getElementById('sidebar');
+    const btnMobileMenu = document.getElementById('btnMobileMenu');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
 
     if (btnToggle && sidebar) {
         // Restore sidebar state from localStorage
@@ -87,6 +89,15 @@ function initSidebar() {
         }
 
         btnToggle.addEventListener('click', toggleSidebar);
+    }
+
+    // Mobile menu
+    if (btnMobileMenu) {
+        btnMobileMenu.addEventListener('click', toggleMobileSidebar);
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeMobileSidebar);
     }
 }
 
@@ -105,6 +116,34 @@ function toggleSidebar() {
         if (btnToggle) {
             btnToggle.title = isMinimized ? 'Expandir' : 'Minimizar';
         }
+    }
+}
+
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    if (sidebar && overlay) {
+        const isOpen = sidebar.classList.contains('mobile-open');
+
+        if (isOpen) {
+            closeMobileSidebar();
+        } else {
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    if (sidebar && overlay) {
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
     }
 }
 
@@ -1811,6 +1850,8 @@ window.generateBatchVideos = generateBatchVideos;
 window.selectBatchImage = selectBatchImage;
 window.downloadVideoByPath = downloadVideoByPath;
 window.toggleSidebar = toggleSidebar;
+window.toggleMobileSidebar = toggleMobileSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
 window.playVideo = playVideo;
 window.loadVideoHistory = loadVideoHistory;
 window.loadProcessingJobs = loadProcessingJobs;
