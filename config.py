@@ -83,5 +83,15 @@ class Config:
 
         return True
 
-# Valida configurações ao importar
-Config.validate()
+# Valida configurações ao importar (pode ser desabilitado via env var)
+if not os.getenv('SKIP_CONFIG_VALIDATION'):
+    try:
+        Config.validate()
+    except ValueError as e:
+        # Em modo executável, apenas mostra aviso mas não bloqueia
+        import sys
+        if getattr(sys, 'frozen', False):
+            print(f"\nAviso de configuracao: {e}")
+            print("Configure as API keys pela interface web.\n")
+        else:
+            raise
